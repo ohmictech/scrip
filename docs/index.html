@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scrip · proof-of-work money</title>
+<meta name="description" content="Scrip is a token issued only by proof of work. No premine, no issuer, no admin keys. Mine it with the reference CPU miner.">
+<meta name="theme-color" content="#00171c">
+<meta property="og:title" content="Scrip · proof-of-work money">
+<meta property="og:description" content="Issued only by proof of work. No premine, no issuer, no admin keys.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://scrip.credit/">
+<meta property="og:image" content="logo.png">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<style>
+  :root{
+    --ink:#00171c;
+    --deep:#003139;
+    --teal:#009d89;
+    --green:#00ff46;
+    --white:#f4fdfa;
+    --muted:rgba(244,253,250,.54);
+    --muted-2:rgba(244,253,250,.34);
+    --mono:ui-monospace,"SF Mono","Cascadia Mono","JetBrains Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+
+  body{
+    background:var(--ink);
+    color:var(--white);
+    font-family:var(--mono);
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+
+  /* ---------- background field ---------- */
+  .field{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+  .field .wash{
+    position:absolute;inset:-20%;
+    background:
+      radial-gradient(46% 42% at 18% 12%, rgba(0,157,137,.30), transparent 70%),
+      radial-gradient(40% 46% at 84% 78%, rgba(0,255,70,.13), transparent 72%),
+      radial-gradient(58% 58% at 50% 46%, rgba(0,49,57,.85), transparent 74%),
+      linear-gradient(180deg,#00171c 0%,#001014 100%);
+  }
+  .field .dots{
+    position:absolute;inset:0;
+    background-image:radial-gradient(rgba(0,255,70,.16) 1px, transparent 1px);
+    background-size:38px 38px;
+    -webkit-mask-image:radial-gradient(70% 62% at 50% 42%, #000 0%, transparent 78%);
+            mask-image:radial-gradient(70% 62% at 50% 42%, #000 0%, transparent 78%);
+    opacity:.5;
+  }
+  .field .ghost{
+    position:absolute;left:50%;bottom:-11vh;transform:translateX(-50%);
+    font-size:clamp(64px,15vw,230px);font-weight:700;letter-spacing:-.045em;
+    color:rgba(0,255,70,.022);white-space:nowrap;user-select:none;
+  }
+  .field .vig{
+    position:absolute;inset:0;
+    background:radial-gradient(120% 90% at 50% 40%, transparent 40%, rgba(0,10,14,.85) 100%);
+  }
+
+  /* ---------- shell ---------- */
+  .shell{
+    position:relative;z-index:1;
+    min-height:100svh;
+    display:flex;align-items:center;justify-content:center;
+    padding:clamp(20px,3.4vw,44px) clamp(18px,4vw,40px);
+  }
+  .panel{width:100%;max-width:1080px}
+
+  /* ---------- top rail ---------- */
+  .rail{
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--muted-2);margin-bottom:clamp(24px,4vh,44px);
+  }
+  .rail .left{display:flex;align-items:center;gap:10px;color:var(--teal)}
+  .ping{
+    width:7px;height:7px;border-radius:50%;background:var(--green);
+    box-shadow:0 0 12px 2px rgba(0,255,70,.55);
+    animation:ping 2.4s ease-in-out infinite;
+  }
+  @keyframes ping{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.82)}}
+  .rail .right{color:var(--muted-2)}
+
+  /* ---------- hero ---------- */
+  .hero{
+    display:grid;grid-template-columns:minmax(0,1fr) auto;
+    align-items:center;gap:clamp(24px,4vw,56px);
+    margin-bottom:clamp(26px,4.5vh,46px);
+  }
+  .hero-left{display:flex;align-items:center;gap:clamp(20px,3vw,38px);min-width:0}
+
+  /* the headline figure: nothing has been minted yet */
+  .minted{text-align:right;line-height:1;position:relative}
+  .minted::before{
+    content:"";position:absolute;right:-8%;top:-40%;width:130%;height:200%;
+    background:radial-gradient(50% 50% at 60% 50%, rgba(0,255,70,.10), transparent 70%);
+    pointer-events:none;
+  }
+  .minted .k{
+    font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;
+    color:var(--teal);margin-bottom:4px;
+  }
+  .minted .big{
+    font-size:clamp(52px,8vw,116px);font-weight:700;letter-spacing:-.05em;
+    font-variant-numeric:tabular-nums;color:var(--white);
+    text-shadow:0 0 70px rgba(0,255,70,.30);
+    transition:color .5s ease;
+  }
+  .minted .big.flash{color:var(--green)}
+  .minted .s{margin-top:10px;font-size:10px;letter-spacing:.1em;color:var(--muted-2);text-transform:uppercase}
+  .mark{position:relative;flex:0 0 auto;width:clamp(84px,10vw,124px);height:clamp(84px,10vw,124px)}
+  .mark img{
+    position:relative;z-index:2;width:100%;height:100%;display:block;object-fit:contain;
+    filter:drop-shadow(0 0 34px rgba(0,255,70,.28)) drop-shadow(0 6px 30px rgba(0,0,0,.55));
+  }
+  .halo{
+    position:absolute;inset:-26%;border-radius:50%;z-index:1;
+    background:conic-gradient(from 0deg,transparent 0 34%,rgba(0,255,70,.95) 44%,rgba(0,157,137,.95) 58%,transparent 66% 100%);
+    -webkit-mask-image:radial-gradient(closest-side,transparent 62%,#000 67%,#000 77%,transparent 84%);
+            mask-image:radial-gradient(closest-side,transparent 62%,#000 67%,#000 77%,transparent 84%);
+    filter:blur(10px);opacity:.8;
+    animation:spin 16s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .title{
+    font-size:clamp(46px,8.2vw,92px);line-height:.92;font-weight:700;
+    letter-spacing:-.05em;text-shadow:0 0 46px rgba(0,255,70,.20);
+  }
+  .tag{
+    margin-top:14px;font-size:clamp(12px,1.35vw,14px);line-height:1.7;
+    color:var(--muted);max-width:50ch;
+  }
+  .tag b{color:var(--white);font-weight:500}
+
+  /* ---------- stats ---------- */
+  .stats{
+    display:grid;grid-template-columns:repeat(6,minmax(0,1fr));
+    gap:clamp(14px,2.1vw,26px);
+    margin-bottom:clamp(20px,3.4vh,34px);
+  }
+  .stat{min-width:0}
+  .stat .k{
+    font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--teal);margin-bottom:7px;white-space:nowrap;
+    display:flex;align-items:center;gap:6px;
+  }
+  .stat .k span{color:var(--muted-2);letter-spacing:.12em}
+  .stat .v{
+    font-size:clamp(15px,2.05vw,23px);font-weight:600;
+    font-variant-numeric:tabular-nums;letter-spacing:-.02em;
+    color:var(--white);text-shadow:0 0 26px rgba(0,255,70,.16);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    transition:color .5s ease;
+  }
+  .stat .v small{font-size:.6em;color:var(--muted-2);font-weight:400;letter-spacing:.04em;margin-left:4px}
+  .stat .v.flash{color:var(--green)}
+  .stat .sub{margin-top:5px;font-size:10px;letter-spacing:.06em;color:var(--muted-2);white-space:nowrap}
+
+  /* ---------- challenge ---------- */
+  .chal{
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    padding:14px 18px;border-radius:14px;
+    background:linear-gradient(100deg,rgba(0,157,137,.13),rgba(0,49,57,.32) 46%,rgba(0,255,70,.05));
+    margin-bottom:clamp(20px,3.4vh,32px);
+  }
+  .chal .label{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--teal);white-space:nowrap}
+  .chal code{
+    font-size:clamp(11px,1.5vw,13.5px);color:var(--white);
+    font-variant-numeric:tabular-nums;letter-spacing:.02em;
+    flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+
+  /* ---------- buttons + copy ---------- */
+  .copy{
+    background:none;border:0;cursor:pointer;color:var(--muted-2);
+    font:inherit;font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;
+    padding:4px 2px;transition:color .2s ease,text-shadow .2s ease;
+  }
+  .copy:hover{color:var(--green);text-shadow:0 0 16px rgba(0,255,70,.6)}
+  .copy.done{color:var(--green)}
+
+  .actions{display:flex;align-items:center;gap:clamp(10px,1.6vw,18px);flex-wrap:wrap;margin-bottom:clamp(18px,3vh,28px)}
+  .btn{
+    display:inline-flex;align-items:center;gap:10px;
+    padding:14px 26px;border-radius:12px;
+    font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+    text-decoration:none;color:#00171c;white-space:nowrap;
+    background:linear-gradient(135deg,var(--green),#7dffa0 46%,var(--teal));
+    box-shadow:0 14px 40px -14px rgba(0,255,70,.75);
+    transition:transform .18s ease,box-shadow .25s ease,filter .2s ease;
+  }
+  .btn:hover{transform:translateY(-2px);box-shadow:0 18px 52px -14px rgba(0,255,70,.95);filter:saturate(1.12)}
+  .btn:active{transform:translateY(0)}
+  .btn.ghost{
+    color:var(--white);background:linear-gradient(135deg,rgba(0,157,137,.26),rgba(0,49,57,.48));
+    box-shadow:0 12px 40px -18px rgba(0,157,137,.7);
+  }
+  .btn.ghost:hover{box-shadow:0 18px 52px -16px rgba(0,157,137,.95)}
+  .btn .arw{font-size:14px;letter-spacing:0;transition:transform .2s ease}
+  .btn:hover .arw{transform:translateX(3px)}
+
+  /* ---------- footer ---------- */
+  .foot{
+    display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+    font-size:10.5px;letter-spacing:.05em;color:var(--muted-2);
+  }
+  .addr{display:inline-flex;align-items:center;gap:9px;font-size:11px;letter-spacing:.02em;color:var(--muted)}
+  .addr b{color:var(--white);font-weight:500}
+  .note code{color:rgba(0,255,70,.6)}
+  .dead .v,.dead code{color:var(--muted-2);text-shadow:none}
+
+  /* ---------- responsive ---------- */
+  @media (max-width:900px){
+    .stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .hero{grid-template-columns:1fr;gap:22px}
+    .minted{text-align:left}
+    .minted .big{font-size:clamp(44px,11vw,68px)}
+  }
+  @media (max-width:620px){
+    .shell{align-items:flex-start;padding:24px 18px 26px}
+    .rail{font-size:9px;letter-spacing:.13em;margin-bottom:20px}
+    .rail .right{display:none}
+    .hero-left{flex-direction:column;align-items:flex-start;gap:14px}
+    .hero{gap:16px}
+    .mark{width:64px;height:64px}
+    .title{font-size:clamp(40px,13vw,56px)}
+    .tag{font-size:11.5px;line-height:1.6;margin-top:10px}
+    .minted{margin-top:2px}
+    .minted .big{font-size:clamp(40px,12vw,58px)}
+    .stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 14px;margin-bottom:18px}
+    .stat .v{font-size:15px}
+    .stat .sub{font-size:9px}
+    .chal{padding:11px 14px;margin-bottom:16px}
+    .btn{flex:1;justify-content:center;padding:12px 14px;font-size:11px}
+    .actions{margin-bottom:14px;gap:8px}
+    .foot{flex-direction:column;align-items:flex-start;gap:8px;font-size:9.5px;line-height:1.5}
+    .field .ghost{display:none}
+  }
+  @media (max-height:680px) and (min-width:901px){
+    .rail{margin-bottom:20px}
+    .hero{margin-bottom:22px}
+    .stats{margin-bottom:18px}
+    .chal{margin-bottom:18px}
+    .actions{margin-bottom:16px}
+  }
+
+  /* ---------- entrance ---------- */
+  .rise{opacity:0;transform:translateY(10px);animation:rise .7s cubic-bezier(.2,.7,.2,1) forwards}
+  @keyframes rise{to{opacity:1;transform:none}}
+  .d1{animation-delay:.05s}.d2{animation-delay:.14s}.d3{animation-delay:.23s}
+  .d4{animation-delay:.32s}.d5{animation-delay:.41s}.d6{animation-delay:.5s}
+
+  @media (prefers-reduced-motion:reduce){
+    .halo,.ping{animation:none}
+    .rise{animation:none;opacity:1;transform:none}
+    *{transition:none!important}
+  }
+</style>
+</head>
+<body>
+
+<div class="field" aria-hidden="true">
+  <div class="wash"></div>
+  <div class="dots"></div>
+  <div class="ghost">SCRIP</div>
+  <div class="vig"></div>
+</div>
+
+<main class="shell">
+  <div class="panel" id="panel">
+
+    <div class="rail rise d1">
+      <div class="left"><span class="ping"></span><span id="net">connecting</span></div>
+      <div class="right">base <span id="railBase">--</span> bits · epoch <span id="railEpoch">--</span></div>
+    </div>
+
+    <div class="hero rise d2">
+      <div class="hero-left">
+        <div class="mark">
+          <div class="halo"></div>
+          <img src="logo.svg" alt="Scrip" width="124" height="124">
+        </div>
+        <div>
+          <h1 class="title">SCRIP</h1>
+          <p class="tag">Money that costs work. Every token in existence was found by hashing, and the
+          chain will accept nothing else. <b>No premine, no sale, no issuer, no admin keys.</b></p>
+        </div>
+      </div>
+      <div class="minted">
+        <div class="k">In existence</div>
+        <div class="big" id="mintedBig">0</div>
+        <div class="s">SCRIP · all of it mined</div>
+      </div>
+    </div>
+
+    <section class="stats rise d3">
+      <div class="stat">
+        <div class="k">Emission</div>
+        <div class="v" id="emission">--</div>
+        <div class="sub">SCRIP/day per GH/s</div>
+      </div>
+      <div class="stat">
+        <div class="k">Epoch <span>resets</span></div>
+        <div class="v" id="countdown">--:--:--</div>
+        <div class="sub" id="epochSub">utc day</div>
+      </div>
+      <div class="stat">
+        <div class="k">Difficulty</div>
+        <div class="v" id="base">--<small>bits</small></div>
+        <div class="sub">immutable</div>
+      </div>
+      <div class="stat">
+        <div class="k">Work / SCRIP</div>
+        <div class="v" id="work">--</div>
+        <div class="sub">hashes to mint one</div>
+      </div>
+      <div class="stat">
+        <div class="k">Gas</div>
+        <div class="v" id="gas">--<small>gwei</small></div>
+        <div class="sub">per submission</div>
+      </div>
+      <div class="stat">
+        <div class="k">Block</div>
+        <div class="v" id="block">--</div>
+        <div class="sub">mainnet head</div>
+      </div>
+    </section>
+
+    <div class="chal rise d4">
+      <span class="label">Challenge</span>
+      <code id="chal">0x--</code>
+      <button class="copy" id="copyChal" type="button">copy</button>
+    </div>
+
+    <div class="actions rise d5">
+      <a class="btn" href="https://github.com/ohmictech/scrip" target="_blank" rel="noopener">
+        Download miner <span class="arw">&rarr;</span>
+      </a>
+      <a class="btn ghost" href="https://etherscan.io/token/0x50F15a52d251Dfa33862eEe0b5BbB80f5283e9E9" target="_blank" rel="noopener">
+        Etherscan <span class="arw">&rarr;</span>
+      </a>
+      <span class="addr">
+        <b id="shortAddr">0x50F1...e9E9</b>
+        <button class="copy" id="copyAddr" type="button">copy contract</button>
+      </span>
+    </div>
+
+    <div class="foot rise d6">
+      <span class="note">Mine with <code>cargo run --release</code> · 1 GH/s is about 3,497 SCRIP/day at floor 45 · emission = <code>(129 - base) / 2 * 2^-base</code></span>
+      <span class="note" id="status">reading chain</span>
+    </div>
+
+  </div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  var CONTRACT = "0x50F15a52d251Dfa33862eEe0b5BbB80f5283e9E9";
+  var RPCS = ["https://ethereum-rpc.publicnode.com", "https://eth.drpc.org"];
+  var SEL = {
+    supply: "0x18160ddd",
+    epoch: "0x76671808",
+    challenge: "0x51bdd585",
+    base: "0xf01bbafa"
+  };
+
+  var el = {
+    net: document.getElementById("net"),
+    railBase: document.getElementById("railBase"),
+    railEpoch: document.getElementById("railEpoch"),
+    mintedBig: document.getElementById("mintedBig"),
+    emission: document.getElementById("emission"),
+    countdown: document.getElementById("countdown"),
+    epochSub: document.getElementById("epochSub"),
+    base: document.getElementById("base"),
+    work: document.getElementById("work"),
+    gas: document.getElementById("gas"),
+    block: document.getElementById("block"),
+    chal: document.getElementById("chal"),
+    status: document.getElementById("status"),
+    panel: document.getElementById("panel")
+  };
+
+  var state = { chainTs: 0, localAt: 0 };
+  var usingRpc = 0;
+
+  function hexBig(h) { return BigInt(h); }
+  function commas(n) { return n.toLocaleString("en-US"); }
+
+  // tokens/hash = (129 - base)/2 * 2^-base, so this many hashes mint one token
+  function workPerToken(base) {
+    var levels = 129 - base;
+    if (levels <= 0) return null;
+    return Math.pow(2, base) * 2 / levels;
+  }
+
+  // same identity, inverted: tokens a single GH/s earns in a day
+  function emissionPerGhs(base) {
+    var levels = 129 - base;
+    if (levels <= 0) return null;
+    return (levels / 2) * Math.pow(2, -base) * 86400 * 1e9;
+  }
+
+  function scale(n) {
+    if (n >= 1e12) return (n / 1e12).toFixed(1) + "T";
+    if (n >= 1e9) return (n / 1e9).toFixed(1) + "G";
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+    return n.toFixed(0);
+  }
+
+  function flash(node) {
+    node.classList.add("flash");
+    setTimeout(function () { node.classList.remove("flash"); }, 620);
+  }
+
+  function setNum(node, text) {
+    if (node.textContent !== text) {
+      node.textContent = text;
+      flash(node);
+    }
+  }
+
+  function batch() {
+    return [
+      { jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] },
+      { jsonrpc: "2.0", id: 2, method: "eth_gasPrice", params: [] },
+      { jsonrpc: "2.0", id: 3, method: "eth_getBlockByNumber", params: ["latest", false] },
+      { jsonrpc: "2.0", id: 4, method: "eth_call", params: [{ to: CONTRACT, data: SEL.supply }, "latest"] },
+      { jsonrpc: "2.0", id: 5, method: "eth_call", params: [{ to: CONTRACT, data: SEL.epoch }, "latest"] },
+      { jsonrpc: "2.0", id: 6, method: "eth_call", params: [{ to: CONTRACT, data: SEL.challenge }, "latest"] },
+      { jsonrpc: "2.0", id: 7, method: "eth_call", params: [{ to: CONTRACT, data: SEL.base }, "latest"] }
+    ];
+  }
+
+  function readResult(byId, id) {
+    var r = byId[id];
+    if (!r || r.error || typeof r.result !== "string") return null;
+    return r.result;
+  }
+
+  function apply(byId) {
+    var bn = readResult(byId, 1);
+    var gp = readResult(byId, 2);
+    var blk = byId[3] && byId[3].result;
+    var supply = readResult(byId, 4);
+    var epoch = readResult(byId, 5);
+    var challenge = readResult(byId, 6);
+    var base = readResult(byId, 7);
+
+    if (bn) setNum(el.block, commas(Number(hexBig(bn))));
+    if (gp) setNum(el.gas, (Number(hexBig(gp)) / 1e9).toFixed(3));
+
+    if (supply) setNum(el.mintedBig, commas(Number(hexBig(supply))));
+
+    if (base) {
+      var b = Number(hexBig(base));
+      el.base.innerHTML = b + "<small>bits</small>";
+      el.railBase.textContent = b;
+      var w = workPerToken(b);
+      if (w) setNum(el.work, scale(w));
+      var e = emissionPerGhs(b);
+      if (e) setNum(el.emission, commas(Math.round(e)));
+    }
+
+    if (challenge) {
+      el.chal.textContent = challenge;
+      el.chal.dataset.full = challenge;
+    }
+
+    if (epoch) {
+      var e = Number(hexBig(epoch));
+      el.railEpoch.textContent = e;
+      el.epochSub.textContent = "epoch " + e;
+    }
+
+    if (blk && blk.timestamp) {
+      state.chainTs = Number(hexBig(blk.timestamp));
+      state.localAt = performance.now();
+    }
+  }
+
+  function localTime() {
+    var d = new Date();
+    var p = function (n) { return String(n).padStart(2, "0"); };
+    var m = -d.getTimezoneOffset();
+    var sign = m < 0 ? "-" : "+";
+    m = Math.abs(m);
+    return p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds()) +
+      " " + sign + p(Math.floor(m / 60)) + p(m % 60);
+  }
+
+  function load() {
+    return fetch(RPCS[usingRpc], {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(batch())
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("http " + res.status);
+        return res.json();
+      })
+      .then(function (arr) {
+        var byId = {};
+        for (var i = 0; i < arr.length; i++) byId[arr[i].id] = arr[i];
+        apply(byId);
+        el.net.textContent = "live · ethereum mainnet";
+        el.status.textContent = "synced " + localTime();
+        el.panel.classList.remove("dead");
+      })
+      .catch(function (err) {
+        if (usingRpc < RPCS.length - 1) {
+          usingRpc++;
+          return load();
+        }
+        el.net.textContent = "rpc unreachable";
+        el.status.textContent = "stats offline";
+        el.panel.classList.add("dead");
+        throw err;
+      });
+  }
+
+  // Ticks locally from the last chain timestamp so the countdown stays smooth
+  // between refreshes and cannot disagree with the chain's own clock.
+  function tick() {
+    if (!state.chainTs) return;
+    var now = state.chainTs + (performance.now() - state.localAt) / 1000;
+    var left = 86400 - (now % 86400);
+    var h = Math.floor(left / 3600);
+    var m = Math.floor((left % 3600) / 60);
+    var s = Math.floor(left % 60);
+    el.countdown.textContent =
+      String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+  }
+
+  function copy(text, btn) {
+    function done() {
+      var old = btn.textContent;
+      btn.textContent = "copied";
+      btn.classList.add("done");
+      setTimeout(function () {
+        btn.textContent = old;
+        btn.classList.remove("done");
+      }, 1400);
+    }
+    function fallback() {
+      var t = document.createElement("textarea");
+      t.value = text;
+      t.setAttribute("readonly", "");
+      t.style.position = "fixed";
+      t.style.opacity = "0";
+      document.body.appendChild(t);
+      t.select();
+      try { document.execCommand("copy"); done(); } catch (e) { /* clipboard blocked */ }
+      document.body.removeChild(t);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else {
+      fallback();
+    }
+  }
+
+  document.getElementById("copyAddr").addEventListener("click", function () {
+    copy(CONTRACT, this);
+  });
+
+  document.getElementById("copyChal").addEventListener("click", function () {
+    copy(el.chal.dataset.full || el.chal.textContent, this);
+  });
+
+  document.getElementById("shortAddr").textContent =
+    CONTRACT.slice(0, 6) + "..." + CONTRACT.slice(-4);
+
+  load().catch(function () {});
+  setInterval(function () { load().catch(function () {}); }, 30000);
+  setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>
