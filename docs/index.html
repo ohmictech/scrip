@@ -214,6 +214,11 @@
   .addr{display:inline-flex;align-items:center;gap:9px;font-size:11px;letter-spacing:.02em;color:var(--muted)}
   .addr b{color:var(--white);font-weight:500}
   .note code{color:rgba(0,255,70,.6)}
+  .mail{
+    color:var(--teal);text-decoration:none;
+    transition:color .2s ease,text-shadow .2s ease;
+  }
+  .mail:hover{color:var(--green);text-shadow:0 0 16px rgba(0,255,70,.55)}
   .dead .v,.dead code{color:var(--muted-2);text-shadow:none}
 
   /* ---------- responsive ---------- */
@@ -354,7 +359,7 @@
 
     <div class="foot rise d6">
       <span class="note">Mine with <code>cargo run --release</code> · 1 GH/s is about 3,497 SCRIP/day at floor 45 · emission = <code>(129 - base) / 2 * 2^-base</code></span>
-      <span class="note" id="status">reading chain</span>
+      <span class="note">contact <a class="mail" href="mailto:d@scrip.credit">d@scrip.credit</a> · <span id="status">reading chain</span></span>
     </div>
 
   </div>
