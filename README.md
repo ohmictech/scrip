@@ -127,3 +127,7 @@ to work, with no schedule to lobby.
   automatically at the boundary.
 - Gas above `gas_ceiling_gwei` makes it wait for the next block rather than
   overpay.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

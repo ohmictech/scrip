@@ -3,6 +3,7 @@ name = "scrip-miner"
 version = "0.1.0"
 edition = "2021"
 description = "Reference Scrip miner: create a config, fund a wallet, mine."
+license = "MIT"
 
 [dependencies]
 tiny-keccak = { version = "2.0", features = ["keccak"] }
