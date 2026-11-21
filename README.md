@@ -4,7 +4,7 @@
 
 <h1 align="center">Scrip miner</h1>
 
-<p align="center">A reference CPU miner for Scrip — a token issued only by proof of work.</p>
+<p align="center">A reference CPU miner for Scrip, a token issued only by proof of work.</p>
 
 ---
 
@@ -27,7 +27,7 @@ cargo run --release
 ```
 
 First run creates `config.toml` and `wallet.json` and prints an address. That
-address pays gas — fund it with a little ETH, then put the contract address in
+address pays gas. Fund it with a little ETH, then put the contract address in
 `config.toml` and run again:
 
 ```toml
@@ -47,7 +47,7 @@ is electricity.
 ## The one number that matters: `floor`
 
 A proof is valid if its hash has at least `floor` leading zero bits. Tokens paid
-are `2^(zeros − 40)` — so beating the floor by 10 bits pays 1024×.
+are `2^(zeros - 40)`, so beating the floor by 10 bits pays 1024×.
 
 `floor` is chosen by *you*, not by the chain. There is no retarget. The default
 auto mode measures your machine for three seconds and picks the floor that yields
@@ -74,7 +74,7 @@ pays `2^(k-40)`, so each level contributes `2^-41`. Summing over every level up
 to the cap gives the whole emission schedule:
 
 ```text
-tokens per hash = (129 − 40) / 2 · 2^-40  =  44.5 · 2^-40
+tokens per hash = (129 - 40) / 2 · 2^-40  =  44.5 · 2^-40
 ```
 
 That means:
@@ -82,7 +82,7 @@ That means:
 - **`floor` does not change your income.** It converts deferred value into more,
   smaller notes. Under-declaring to `floor = 40` earns the same tokens as
   `floor = 47`, but pays 44× more transactions to get them. So the floor
-  self-regulates upward to wherever gas stops mattering — no rule required,
+  self-regulates upward to wherever gas stops mattering. No rule is required,
   because the miner pays its own gas.
 - **Requiring exact equality would be a 2× tax.** `P(z = k)` is exactly half of
   `P(z ≥ k)`, so a "hit the target exactly" rule throws away half your work.
@@ -92,11 +92,11 @@ That means:
   per hash is fixed in the bytecode forever. A machine 100× faster mints 100×
   more, permanently, until price moves.
 - **So the arms race is indexed to price.** The early miner's surplus decays on a
-  timescale of `float ÷ daily emission` — days while supply is small, months once
+  timescale of `float ÷ daily emission`: days while supply is small, months once
   it is large. Being early is worth more here than in Bitcoin, and the rational
   response is to maximize efficiency and reinvest before the float grows.
 - **Where it converges.** Once ASICs exist, production cost tracks electricity
-  plus fees plus hardware — an industrial commodity price. Dedicated silicon
+  plus fees plus hardware, an industrial commodity price. Dedicated silicon
   dropping the cost of production is the intended endgame, not a failure mode.
 - **The cap is load-bearing.** Level contributions are equal, so an uncapped
   ladder would emit infinitely per hash. The 128-bit cap is what makes the supply
@@ -120,7 +120,7 @@ to work, with no schedule to lobby.
 ## Warnings
 
 - `wallet.json` holds a private key in plaintext. Keep the balance low, and never
-  commit it — `.gitignore` covers it.
+  commit it. `.gitignore` covers it.
 - Restarting mid-day is safe: each run starts at a random nonce offset so it
   cannot re-grind proofs whose nullifiers are already spent.
 - Proofs are only valid during the UTC day they were ground for. The miner rotates
