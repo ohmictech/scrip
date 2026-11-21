@@ -357,9 +357,11 @@
     </div>
 
     <div class="actions rise d5">
-      <a class="btn" href="https://github.com/ohmictech/scrip" target="_blank" rel="noopener">
+      <a class="btn" id="downloadBtn" href="https://github.com/ohmictech/scrip/releases/latest" target="_blank" rel="noopener">
         Download miner <span class="arw">&rarr;</span>
       </a>
+      <a class="copy" id="allBuilds" href="https://github.com/ohmictech/scrip/releases/latest" target="_blank" rel="noopener">all builds</a>
+      <a class="copy" href="https://github.com/ohmictech/scrip" target="_blank" rel="noopener">github</a>
       <a class="btn ghost" href="https://etherscan.io/token/0x50F15a52d251Dfa33862eEe0b5BbB80f5283e9E9" target="_blank" rel="noopener">
         Etherscan <span class="arw">&rarr;</span>
       </a>
@@ -596,6 +598,44 @@
 
   document.getElementById("shortAddr").textContent =
     CONTRACT.slice(0, 6) + "..." + CONTRACT.slice(-4);
+
+  // Point the download button at the asset for this machine, so a click starts a
+  // download instead of landing on a release page. Falls back to the release page
+  // for anything unrecognised, which always has every build listed.
+  var RELEASES = "https://github.com/ohmictech/scrip/releases/latest";
+  var ASSETS = {
+    windows: { file: "scrip-miner-windows-x86_64.zip", label: "Windows (x86_64)" },
+    linux: { file: "scrip-miner-linux-x86_64.tar.gz", label: "Linux (x86_64)" },
+    macArm: { file: "scrip-miner-macos-arm64.tar.gz", label: "macOS (Apple silicon)" },
+    macIntel: { file: "scrip-miner-macos-x86_64.tar.gz", label: "macOS (Intel)" }
+  };
+
+  function detectPlatform() {
+    var ua = navigator.userAgent || "";
+    if (/Android|iPhone|iPad|iPod/i.test(ua)) return null;
+    if (/Windows/i.test(ua)) return "windows";
+    if (/Mac OS X|Macintosh/i.test(ua)) {
+      // iPadOS reports a Mac user agent; touch points give it away.
+      if (navigator.maxTouchPoints > 1) return null;
+      var renderer = "";
+      try {
+        var canvas = document.createElement("canvas").getContext("webgl");
+        var debug = canvas && canvas.getExtension("WEBGL_debug_renderer_info");
+        if (debug) renderer = String(canvas.getParameter(debug.UNMASKED_RENDERER_WEBGL));
+      } catch (e) { /* no webgl, assume apple silicon */ }
+      return /Intel|AMD|Radeon|NVIDIA/i.test(renderer) ? "macIntel" : "macArm";
+    }
+    if (/Linux|X11|CrOS/i.test(ua)) return "linux";
+    return null;
+  }
+
+  var platform = detectPlatform();
+  if (platform) {
+    var asset = ASSETS[platform];
+    var button = document.getElementById("downloadBtn");
+    button.href = RELEASES + "/download/" + asset.file;
+    button.title = "Download for " + asset.label;
+  }
 
   load().catch(function () {});
   setInterval(function () { load().catch(function () {}); }, 30000);
