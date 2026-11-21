@@ -1,0 +1,30 @@
+# Scrip miner configuration. Copy to config.toml, or just run the miner once and
+# it will generate one of these next to the binary.
+
+# Ethereum JSON-RPC endpoint. The default is public and keyless; fine to start on,
+# but use your own node for steady-state mining.
+rpc = "https://ethereum-rpc.publicnode.com"
+
+# Mining threads. 0 = every available core.
+threads = 0
+
+# Where mined tokens are credited. Proofs bind this address, so a relay cannot
+# redirect them. Leave empty to use the gas wallet's address.
+payout = ""
+
+# Hot key that pays gas, relative to this file. Created on first run.
+wallet = "wallet.json"
+
+# The Scrip contract address. REQUIRED - mining will not start without it.
+contract = "0x50F15a52d251Dfa33862eEe0b5BbB80f5283e9E9"
+
+# Minimum rarity to submit, in leading zero bits. 0 = auto: measure this machine
+# and pick a floor that yields about `target_proofs_per_day`.
+floor = 0
+
+# With floor = 0, aim for roughly this many proofs a day. Lower means fewer,
+# bigger notes and less gas; higher means more, smaller ones.
+target_proofs_per_day = 3.0
+
+# Never pay more than this for gas, in gwei.
+gas_ceiling_gwei = 5.0

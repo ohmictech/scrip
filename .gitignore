@@ -1,0 +1,10 @@
+target/
+**/*.rs.bk
+
+# Per-machine state: generated on first run, holds a private key.
+config.toml
+wallet.json
+
+.idea/
+.vscode/
+.DS_Store
