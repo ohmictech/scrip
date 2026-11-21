@@ -119,10 +119,10 @@ jobs:
             ```
 
             First run writes `config.toml` and `wallet.json` next to the binary and
-            prints an address. Fund it with a little ETH for gas, set `contract` in
-            `config.toml` to `0x50F15a52d251Dfa33862eEe0b5BbB80f5283e9E9`, then run it
-            again. It reads the challenge, difficulty and salt from the chain and
-            starts mining.
+            prints an address. Fund it with a little ETH for gas, then run it again.
+            The contract is pre-filled with the canonical deployment, so there is
+            nothing to edit: it reads the challenge, difficulty and salt from the
+            chain and starts mining.
 
             `wallet.json` holds a private key in plaintext. Keep the balance low.
 

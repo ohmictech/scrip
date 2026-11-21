@@ -61,22 +61,15 @@ fn run() -> Result<(), String> {
     let wallet = wallet::load_or_create(&wallet_path)?;
 
     // --- contract ----------------------------------------------------------
-    let contract_hex = args
-        .contract
-        .clone()
-        .unwrap_or_else(|| cfg.contract.clone())
-        .trim()
-        .to_string();
-
-    if contract_hex.is_empty() {
-        println!();
-        println!("One thing left: set `contract` in {}", config_path.display());
-        println!("Then run this command again and mining starts immediately.");
-        println!();
-        println!("Wallet address to fund with a little ETH for gas:");
-        println!("    {}", wallet.address_hex());
-        return Ok(());
-    }
+    // Falls back to the canonical deployment, so a blank or missing `contract`
+    // still mines instead of stopping to ask. `--contract` wins over both.
+    let contract_hex = match args.contract.clone() {
+        Some(c) if !c.trim().is_empty() => c.trim().to_string(),
+        _ => match cfg.contract.trim() {
+            "" => config::DEFAULT_CONTRACT.to_string(),
+            c => c.to_string(),
+        },
+    };
 
     let contract = parse_address(&contract_hex)?;
     let payout = if cfg.payout.trim().is_empty() {

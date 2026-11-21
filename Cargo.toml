@@ -1,6 +1,6 @@
-[package]
+﻿[package]
 name = "scrip-miner"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 description = "Reference Scrip miner: create a config, fund a wallet, mine."
 license = "MIT"

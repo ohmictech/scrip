@@ -27,19 +27,16 @@ cargo run --release
 ```
 
 First run creates `config.toml` and `wallet.json` and prints an address. That
-address pays gas. Fund it with a little ETH, then put the contract address in
-`config.toml` and run again:
-
-```toml
-contract = "0x50F15a52d251Dfa33862eEe0b5BbB80f5283e9E9"
-```
+address pays gas. Fund it with a little ETH, then run it again and it mines:
 
 ```bash
 cargo run --release
 ```
 
-Everything else has a sane default: all cores, auto difficulty, public RPC, gas
-capped at 5 gwei. `--help` for the flags.
+The contract address is pre-filled with the canonical deployment above, and a
+blank or missing `contract` falls back to it, so there is nothing to edit.
+Everything else has a sane default too: all cores, auto difficulty, public RPC,
+gas capped at 5 gwei. `--help` for the flags.
 
 Nothing is submitted until you find a proof, so the only cost of letting it idle
 is electricity.
