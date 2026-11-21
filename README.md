@@ -62,7 +62,7 @@ proofs/day = hashrate × 86,400 / 2^floor
 | 8-core CPU | ~10 MH/s | 40 | 0.8 |
 | 16-core CPU | ~24 MH/s | 41 | 1.0 |
 | consumer GPU | ~1 GH/s | 45 | 2.5 |
-| ASIC | ~60 TH/s | 61 | 2.0 |
+| high performance ASIC | ~60 TH/s | 61 | 2.0 |
 
 Lower floor = more, smaller notes. Higher floor = fewer, bigger ones.
 
