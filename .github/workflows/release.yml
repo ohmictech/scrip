@@ -1,0 +1,130 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish (e.g. v0.0.1)"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            asset: scrip-miner-linux-x86_64.tar.gz
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            asset: scrip-miner-windows-x86_64.zip
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            asset: scrip-miner-macos-arm64.tar.gz
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            asset: scrip-miner-macos-x86_64.tar.gz
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      # Runs the binary on the platform it was built for. Catches a build that
+      # links but cannot start, which a cross-compile would otherwise hide.
+      - name: Smoke test (unix)
+        if: runner.os != 'Windows'
+        run: ./target/${{ matrix.target }}/release/scrip-miner --help
+
+      - name: Smoke test (windows)
+        if: runner.os == 'Windows'
+        run: ./target/${{ matrix.target }}/release/scrip-miner.exe --help
+
+      - name: Package (unix)
+        if: runner.os != 'Windows'
+        run: tar -czf "${{ matrix.asset }}" -C "target/${{ matrix.target }}/release" scrip-miner
+
+      - name: Package (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path "target/${{ matrix.target }}/release/scrip-miner.exe" -DestinationPath "${{ matrix.asset }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: ${{ matrix.asset }}
+          if-no-files-found: error
+
+  publish:
+    name: publish
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        run: |
+          cd dist
+          sha256sum scrip-miner-* > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          name: Scrip miner ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          fail_on_unmatched_files: true
+          files: |
+            dist/scrip-miner-*
+            dist/SHA256SUMS.txt
+          body: |
+            CPU miner for the Scrip proof-of-work token.
+
+            ## Download
+
+            | Platform | File |
+            | --- | --- |
+            | Windows x86_64 | `scrip-miner-windows-x86_64.zip` |
+            | Linux x86_64 | `scrip-miner-linux-x86_64.tar.gz` |
+            | macOS Apple silicon | `scrip-miner-macos-arm64.tar.gz` |
+            | macOS Intel | `scrip-miner-macos-x86_64.tar.gz` |
+
+            Verify what you downloaded before running it:
+
+            ```sh
+            sha256sum -c SHA256SUMS.txt
+            ```
+
+            ## Run
+
+            ```sh
+            ./scrip-miner
+            ```
+
+            First run writes `config.toml` and `wallet.json` next to the binary and
+            prints an address. Fund it with a little ETH for gas, set `contract` in
+            `config.toml` to `0x50F15a52d251Dfa33862eEe0b5BbB80f5283e9E9`, then run it
+            again. It reads the challenge, difficulty and salt from the chain and
+            starts mining.
+
+            `wallet.json` holds a private key in plaintext. Keep the balance low.
+
+            Contract: https://etherscan.io/address/0x50F15a52d251Dfa33862eEe0b5BbB80f5283e9E9
+            Site: https://scrip.credit

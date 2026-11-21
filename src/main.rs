@@ -1,4 +1,4 @@
-//! Scrip reference miner.
+﻿//! Scrip reference miner.
 //!
 //! Single command: creates `config.toml` and `wallet.json` beside itself on the
 //! first run, then mines continuously, submitting each proof as it is found.
@@ -44,7 +44,7 @@ fn run() -> Result<(), String> {
         .map(Path::to_path_buf)
         .unwrap_or_else(|| PathBuf::from("."));
 
-    println!("scrip-miner 0.1.0");
+    println!("scrip-miner {}", env!("CARGO_PKG_VERSION"));
 
     // --- config and wallet, created on first run ---------------------------
     let created_config = !config_path.exists();
@@ -359,7 +359,7 @@ impl Args {
 }
 
 fn print_help() {
-    println!("scrip-miner 0.1.0");
+    println!("scrip-miner {}", env!("CARGO_PKG_VERSION"));
     println!();
     println!("USAGE:");
     println!("    scrip-miner [--config <path>] [--contract <address>]");
