@@ -957,26 +957,33 @@
     var light = document.getElementById("cursorlight");
     var tx = 0, ty = 0, mx = 0, my = 0, ca = 0, caTarget = 0, raf = 0;
 
+    function apply(x, y, c) {
+      root.style.setProperty("--mx", x.toFixed(3));
+      root.style.setProperty("--my", y.toFixed(3));
+      root.style.setProperty("--ca", c.toFixed(3));
+    }
+
     function frame() {
       mx += (tx - mx) * 0.12;
       my += (ty - my) * 0.12;
       ca += (caTarget - ca) * 0.2;
       caTarget *= 0.955;
-      root.style.setProperty("--mx", mx.toFixed(3));
-      root.style.setProperty("--my", my.toFixed(3));
-      root.style.setProperty("--ca", ca.toFixed(3));
+      apply(mx, my, ca);
       if (Math.abs(mx - tx) < 0.001 && Math.abs(my - ty) < 0.001 && ca < 0.002 && caTarget < 0.002) {
         raf = 0;
-        root.style.setProperty("--ca", "0");
+        apply(mx, my, 0);
         return;
       }
       raf = requestAnimationFrame(frame);
     }
 
     window.addEventListener("pointermove", function (e) {
-      tx = (e.clientX / window.innerWidth - 0.5) * 2;
-      ty = (e.clientY / window.innerHeight - 0.5) * 2;
-      caTarget = 1;
+      tx = mx = (e.clientX / window.innerWidth - 0.5) * 2;
+      ty = my = (e.clientY / window.innerHeight - 0.5) * 2;
+      ca = caTarget = 1;
+      // Written immediately so the response never depends on the next frame;
+      // rAF only smooths and decays from here.
+      apply(mx, my, ca);
       if (light) {
         light.style.transform =
           "translate3d(" + e.clientX + "px," + e.clientY + "px,0) translate(-50%,-50%)";
