@@ -10,7 +10,7 @@ documentation = "https://github.com/ohmictech/scrip#readme"
 readme = "README.md"
 keywords = ["mining", "proof-of-work", "ethereum", "keccak", "crypto"]
 categories = ["command-line-utilities", "cryptography"]
-include = ["/src", "/Cargo.toml", "/README.md", "/LICENSE"]
+include = ["/src", "/Cargo.toml", "/README.md", "/LICENSE", "/logo.png"]
 
 [dependencies]
 tiny-keccak = { version = "2.0", features = ["keccak"] }
