@@ -33,14 +33,16 @@
   }
 
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
+  html,body{min-height:100%}
 
   body{
     background:var(--ink);
     color:var(--white);
     font-family:var(--mono);
     -webkit-font-smoothing:antialiased;
-    overflow-x:hidden;
+    /* clip, not hidden: `hidden` creates a scroll container and would stop the
+       page from growing when the disclosure opens */
+    overflow-x:clip;
   }
 
   /* ---------- background field ---------- */
@@ -94,7 +96,6 @@
     animation:ping 2.4s ease-in-out infinite;
   }
   @keyframes ping{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.82)}}
-  .rail .right{color:var(--muted-2)}
 
   /* ---------- hero ---------- */
   .hero{
@@ -226,6 +227,27 @@
   .addr{display:inline-flex;align-items:center;gap:9px;font-size:11px;letter-spacing:.02em;color:var(--muted)}
   .addr b{color:var(--white);font-weight:500}
   .note code{color:rgba(0,255,70,.6)}
+
+  /* ---------- game theory ---------- */
+  .gt{margin-bottom:clamp(14px,2.4vh,22px)}
+  .gt summary{
+    list-style:none;cursor:pointer;
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:13px 18px;border-radius:14px;
+    font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;
+    color:rgba(244,253,250,.82);
+    background:linear-gradient(100deg,rgba(0,157,137,.20),rgba(0,49,57,.36) 46%,rgba(0,255,70,.08));
+    transition:color .2s ease,background .25s ease;
+  }
+  .gt summary::-webkit-details-marker{display:none}
+  .gt summary:hover{color:var(--green);background:linear-gradient(100deg,rgba(0,157,137,.30),rgba(0,49,57,.42) 46%,rgba(0,255,70,.13))}
+  .gt summary .arw{font-size:15px;line-height:1;letter-spacing:0;color:var(--teal);transition:transform .25s ease,color .2s ease}
+  .gt summary:hover .arw{color:var(--green)}
+  .gt[open] summary .arw{transform:rotate(45deg)}
+  .gt-text{
+    margin-top:15px;font-size:12px;line-height:1.85;
+    color:rgba(244,253,250,.68);max-width:100ch;
+  }
   .mail{
     color:var(--teal);text-decoration:none;
     transition:color .2s ease,text-shadow .2s ease;
@@ -242,8 +264,7 @@
   }
   @media (max-width:620px){
     .shell{align-items:flex-start;padding:24px 18px 26px}
-    .rail{font-size:9px;letter-spacing:.13em;margin-bottom:20px}
-    .rail .right{display:none}
+    .rail{font-size:9px;letter-spacing:.13em;margin-bottom:14px}
     .hero-left{flex-direction:column;align-items:flex-start;gap:14px}
     .hero{gap:16px}
     .mark{width:64px;height:64px}
@@ -251,12 +272,15 @@
     .tag{font-size:11.5px;line-height:1.6;margin-top:10px}
     .minted{margin-top:2px}
     .minted .big{font-size:clamp(40px,12vw,58px)}
-    .stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 14px;margin-bottom:18px}
+    .stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 14px;margin-bottom:14px}
     .stat .v{font-size:15px}
     .stat .sub{font-size:9px}
-    .chal{padding:11px 14px;margin-bottom:16px}
+    .chal{padding:10px 13px;margin-bottom:12px}
+    .gt{margin-bottom:12px}
+    .gt summary{padding:11px 14px;font-size:9.5px}
+    .gt-text{font-size:11px;line-height:1.7;margin-top:12px}
     .btn{flex:1;justify-content:center;padding:12px 14px;font-size:11px}
-    .actions{margin-bottom:14px;gap:8px}
+    .actions{margin-bottom:12px;gap:8px}
     .foot{flex-direction:column;align-items:flex-start;gap:8px;font-size:9.5px;line-height:1.5}
     .field .ghost{display:none}
   }
@@ -295,7 +319,6 @@
 
     <div class="rail rise d1">
       <div class="left"><span class="ping"></span><span id="net">connecting</span></div>
-      <div class="right">base <span id="railBase">--</span> bits · epoch <span id="railEpoch">--</span></div>
     </div>
 
     <div class="hero rise d2">
@@ -353,7 +376,6 @@
     <div class="chal rise d4">
       <span class="label">Challenge</span>
       <code id="chal">0x--</code>
-      <button class="copy" id="copyChal" type="button">copy</button>
     </div>
 
     <div class="actions rise d5">
@@ -371,8 +393,25 @@
       </span>
     </div>
 
+    <div class="gt rise d6">
+      <details>
+        <summary>
+          <span>game theory</span>
+          <span class="arw">+</span>
+        </summary>
+        <p class="gt-text">Emission is set by arithmetic, not policy. A hash with k leading zero
+        bits appears with probability 2<sup>-k-1</sup> and pays 2<sup>k-40</sup> tokens, so every rarity
+        level is worth exactly the same and the whole ladder sums to 44.5 · 2⁻⁴⁰ tokens per hash.
+        Difficulty never retargets, so a miner with twice the hashrate mints twice as much permanently:
+        competition shows up in price instead of in a difficulty adjustment, and early work keeps a
+        surplus that decays only as supply accumulates. And because every token costs electricity and
+        hardware to produce, its price is anchored to joules and tends toward an industrial commodity
+        rather than a discretionary issuance schedule.</p>
+      </details>
+    </div>
+
     <div class="foot rise d6">
-      <span class="note">Mine with <code>cargo run --release</code> · 1 GH/s is about 3,497 SCRIP/day at floor 45 · emission = <code>(129 - base) / 2 * 2^-base</code></span>
+      <span class="note"><code>cargo install scrip-miner</code></span>
       <span class="note">contact <a class="mail" href="mailto:d@scrip.credit">d@scrip.credit</a> · <span id="status">reading chain</span></span>
     </div>
 
@@ -394,8 +433,6 @@
 
   var el = {
     net: document.getElementById("net"),
-    railBase: document.getElementById("railBase"),
-    railEpoch: document.getElementById("railEpoch"),
     mintedBig: document.getElementById("mintedBig"),
     emission: document.getElementById("emission"),
     countdown: document.getElementById("countdown"),
@@ -483,7 +520,6 @@
     if (base) {
       var b = Number(hexBig(base));
       el.base.innerHTML = b + "<small>bits</small>";
-      el.railBase.textContent = b;
       var w = workPerToken(b);
       if (w) setNum(el.work, scale(w));
       var e = emissionPerGhs(b);
@@ -492,12 +528,10 @@
 
     if (challenge) {
       el.chal.textContent = challenge;
-      el.chal.dataset.full = challenge;
     }
 
     if (epoch) {
       var e = Number(hexBig(epoch));
-      el.railEpoch.textContent = e;
       el.epochSub.textContent = "epoch " + e;
     }
 
@@ -590,10 +624,6 @@
 
   document.getElementById("copyAddr").addEventListener("click", function () {
     copy(CONTRACT, this);
-  });
-
-  document.getElementById("copyChal").addEventListener("click", function () {
-    copy(el.chal.dataset.full || el.chal.textContent, this);
   });
 
   document.getElementById("shortAddr").textContent =
