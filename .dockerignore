@@ -1,0 +1,9 @@
+target/
+docs/
+.github/
+.git/
+logo.png
+logo.svg
+config.example.toml
+config.toml
+wallet.json

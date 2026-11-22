@@ -20,18 +20,36 @@ This repo is the miner. Contract address:
 0x50F15a52d251Dfa33862eEe0b5BbB80f5283e9E9
 ```
 
+## Install
+
+Pick whichever fits. All of them ship the same binary.
+
+```bash
+# Rust toolchain
+cargo install scrip-miner
+
+# macOS or Linux, via Homebrew
+brew install ohmictech/scrip/scrip-miner
+
+# Docker
+docker run -it -v scrip:/data ghcr.io/ohmictech/scrip-miner
+```
+
+Or download a prebuilt binary for Windows, Linux, or macOS from
+[releases](https://github.com/ohmictech/scrip/releases/latest). The release also
+ships `SHA256SUMS.txt`; check it before running anything.
+
+To build from source instead: `cargo build --release`.
+
 ## Run it
 
 ```bash
-cargo run --release
+scrip-miner
 ```
 
-First run creates `config.toml` and `wallet.json` and prints an address. That
-address pays gas. Fund it with a little ETH, then run it again and it mines:
-
-```bash
-cargo run --release
-```
+First run creates `config.toml` and `wallet.json` in the working directory and
+prints an address. That address pays gas. Fund it with a little ETH, then run it
+again and it mines.
 
 The contract address is pre-filled with the canonical deployment above, and a
 blank or missing `contract` falls back to it, so there is nothing to edit.
@@ -40,6 +58,10 @@ gas capped at 5 gwei. `--help` for the flags.
 
 Nothing is submitted until you find a proof, so the only cost of letting it idle
 is electricity.
+
+For Docker, `-v scrip:/data` keeps the wallet and config across container
+replacements. Without it, a new container generates a new wallet and abandons the
+old one's balance.
 
 ## The one number that matters: `floor`
 
