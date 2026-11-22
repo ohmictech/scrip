@@ -231,12 +231,12 @@
 
   /* ---------- game theory module ---------- */
   .gt{position:relative;margin-top:16px}
-  .gt details{display:inline-block}
-  .gt summary{
+ .gt-open{
     position:relative;overflow:hidden;list-style:none;cursor:pointer;
     display:inline-flex;align-items:center;gap:9px;
     padding:9px 13px;border-radius:10px;
-    font-size:9px;letter-spacing:.2em;text-transform:uppercase;
+   border:0;font:inherit;text-align:inherit;
+   font-size:9px;letter-spacing:.2em;text-transform:uppercase;
     color:rgba(244,253,250,.82);
     background:linear-gradient(135deg,rgba(0,157,137,.30),rgba(0,49,57,.52) 55%,rgba(0,255,70,.14));
     -webkit-backdrop-filter:blur(12px) saturate(1.25);
@@ -248,10 +248,9 @@
       0 0 24px -8px rgba(0,255,70,.22);
     transition:color .2s ease,box-shadow .3s ease,transform .2s ease;
   }
-  .gt summary::-webkit-details-marker{display:none}
-  /* glass grid: two hairlines of gradient, masked to a soft ellipse so it reads
+ /* glass grid: two hairlines of gradient, masked to a soft ellipse so it reads
      as etched glass rather than a hatch pattern */
-  .gt summary::before{
+  .gt-open::before{
     content:"";position:absolute;inset:-45%;pointer-events:none;
     background-image:
       linear-gradient(rgba(0,255,70,.6) 1px,transparent 1px),
@@ -267,10 +266,10 @@
     from{background-position:0 0,0 0}
     to{background-position:6px 6px,6px 6px}
   }
-  .gt summary:hover::before,.gt details[open] summary::before{
+  .gt-open:hover::before,.gt-open[aria-expanded="true"]::before{
     transform:translate3d(7px,-5px,0) scale(1.16);opacity:.5;
   }
-  .gt summary:hover{
+  .gt-open:hover{
     color:var(--green);
     box-shadow:
       inset 0 1px 0 rgba(255,255,255,.22),
@@ -278,8 +277,8 @@
       0 14px 34px -14px rgba(0,0,0,.95),
       0 0 32px -6px rgba(0,255,70,.4);
   }
-  .gt summary:active{transform:translateY(1px)}
-  .gt summary span{position:relative;z-index:2}
+  .gt-open:active{transform:translateY(1px)}
+  .gt-open span{position:relative;z-index:2}
   .gt .dot{
     width:5px;height:5px;border-radius:50%;background:var(--green);
     box-shadow:0 0 9px 1px rgba(0,255,70,.7);
@@ -289,26 +288,53 @@
     font-size:12px;line-height:1;letter-spacing:0;color:var(--teal);
     transition:transform .3s ease,color .2s ease;
   }
-  .gt details[open] .arw{transform:rotate(45deg)}
-  .gt summary:hover .arw{color:var(--green)}
-  /* Anchored panel: overlays instead of pushing layout, so the page stays one
-     screen while the explanation is open. */
-  .gt-panel{
-    position:absolute;left:0;top:calc(100% + 10px);z-index:6;
-    width:min(500px,calc(100vw - 40px));
-    padding:16px 18px;border-radius:12px;
-    font-size:11.5px;line-height:1.78;color:rgba(244,253,250,.85);
-    /* opaque, not translucent: this overlays the stat grid and has to win */
-    background:linear-gradient(158deg,#00404a 0%,#002830 38%,#001419 100%);
-    -webkit-backdrop-filter:blur(18px) saturate(1.1);
-            backdrop-filter:blur(18px) saturate(1.1);
-    box-shadow:
-      inset 0 1px 0 rgba(255,255,255,.12),
-      inset 0 0 0 1px rgba(0,255,70,.10),
-      0 26px 64px -22px rgba(0,0,0,.95),
-      0 0 44px -12px rgba(0,157,137,.45);
-    animation:pop .22s cubic-bezier(.2,.7,.2,1);
+  .gt-open[aria-expanded="true"] .arw{transform:rotate(45deg)}
+  .gt-open:hover .arw{color:var(--green)}
+  /* Centered window. Fixed positioning so it is sized to the viewport rather
+     than the hero column, with a dim backdrop to separate it from the dashboard. */
+  .gt-modal{
+    position:fixed;inset:0;z-index:60;
+    display:grid;place-items:center;
+    padding:clamp(16px,3vw,32px);
+    background:rgba(0,8,12,.74);
+    -webkit-backdrop-filter:blur(7px);
+            backdrop-filter:blur(7px);
+    animation:fade .2s ease-out;
   }
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .gt-card{
+    position:relative;width:min(780px,100%);
+    max-height:calc(100vh - 48px);overflow:auto;
+    padding:clamp(22px,2.8vw,34px);
+    border-radius:20px;
+    background:linear-gradient(155deg,#00474f 0%,#002b34 42%,#001419 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.15),
+      inset 0 0 0 1px rgba(0,255,70,.10),
+      0 44px 100px -34px rgba(0,0,0,.96),
+      0 0 70px -20px rgba(0,255,70,.3);
+    animation:pop .24s cubic-bezier(.2,.7,.2,1);
+  }
+  .gt-card p{
+    font-size:clamp(13px,1.15vw,14.5px);line-height:1.78;
+    margin-top:clamp(13px,1.8vh,18px);
+  }
+  .gt-card p:first-of-type{margin-top:0}
+  .gt-lead{
+    color:var(--green);
+    font-size:clamp(15px,1.35vw,17.5px);line-height:1.6;
+    text-shadow:0 0 40px rgba(0,255,70,.3);
+  }
+  .gt-white{color:var(--white)}
+  .gt-mute{color:rgba(244,253,250,.6)}
+  .gt-close{
+    position:absolute;top:12px;right:12px;
+    width:30px;height:30px;border:0;border-radius:9px;cursor:pointer;
+    background:rgba(0,255,70,.07);color:var(--muted);
+    font:inherit;font-size:15px;line-height:1;
+    transition:color .2s ease,background .2s ease;
+  }
+  .gt-close:hover{color:var(--green);background:rgba(0,255,70,.16)}
   @keyframes pop{from{transform:translateY(-6px)}to{transform:none}}
   .mail{
     color:var(--teal);text-decoration:none;
@@ -339,7 +365,7 @@
     .stat .sub{font-size:9px}
     .chal{padding:10px 13px;margin-bottom:12px}
     .gt{margin-top:12px}
-    .gt summary{padding:8px 11px;font-size:8.5px}
+    .gt-open{padding:8px 11px;font-size:8.5px}
     .gt-panel{width:calc(100vw - 36px);font-size:11px}
     .btn{flex:1;justify-content:center;padding:12px 14px;font-size:11px}
     .actions{margin-bottom:12px;gap:8px}
@@ -361,7 +387,7 @@
   .d4{animation-delay:.32s}.d5{animation-delay:.41s}.d6{animation-delay:.5s}
 
   @media (prefers-reduced-motion:reduce){
-    .halo,.ping,.gt summary::before{animation:none}
+    .halo,.ping,.gt-open::before{animation:none}
     .rise{animation:none;opacity:1;transform:none}
     *{transition:none!important}
   }
@@ -394,28 +420,18 @@
           <p class="tag">Money that costs work. Every token in existence was found by hashing, and the
           chain will accept nothing else. <b>No premine, no sale, no issuer, no admin keys.</b></p>
           <div class="gt">
-            <details>
-              <summary>
-                <span class="dot"></span>
-                <span>game theory</span>
-                <span class="arw">+</span>
-              </summary>
-              <p class="gt-panel">Emission is set by arithmetic, not policy. A hash with k leading zero
-              bits appears with probability 2<sup>-k-1</sup> and pays 2<sup>k-40</sup> tokens, so every
-              rarity level is worth exactly the same and the whole ladder sums to 44.5 · 2⁻⁴⁰ tokens per
-              hash. Difficulty never retargets, so a miner with twice the hashrate mints twice as much
-              permanently: competition shows up in price instead of in a difficulty adjustment, and early
-              work keeps a surplus that decays only as supply accumulates. And because every token costs
-              electricity and hardware to produce, its price is anchored to joules and tends toward an
-              industrial commodity rather than a discretionary issuance schedule.</p>
-            </details>
+            <button class="gt-open" id="gtOpen" type="button" aria-haspopup="dialog" aria-expanded="false">
+              <span class="dot"></span>
+              <span>game theory</span>
+              <span class="arw">+</span>
+            </button>
           </div>
         </div>
       </div>
       <div class="minted">
-        <div class="k">In existence</div>
+        <div class="k">Mined</div>
         <div class="big" id="mintedBig">0</div>
-        <div class="s">SCRIP · all of it mined</div>
+        <div class="s">SCRIP</div>
       </div>
     </div>
 
@@ -476,6 +492,31 @@
       <span class="note"><code>cargo install scrip-miner</code></span>
       <span class="note">contact <a class="mail" href="mailto:d@scrip.credit">d@scrip.credit</a> · <span id="status">reading chain</span></span>
     </div>
+
+              <div class="gt-modal" id="gtModal" hidden>
+                <div class="gt-card">
+                  <button class="gt-close" type="button" aria-label="Close">&times;</button>
+                  <p class="gt-lead">Money should represent a fixed quantity of work, not a fixed
+                  quantity of money. Fix the work and let the supply float, and efficiency stops being a
+                  transfer from the productive to the passive.</p>
+                  <p class="gt-white">A fixed supply means every productivity gain is captured by whoever
+                  already holds money. Produce twice as efficiently and competition forces you to sell
+                  cheaper; the surplus lands in the purchasing power of existing holders, not in your
+                  pocket. Efficiency becomes a subsidy from workers to hoarders. Scrip fixes the work per
+                  token instead, forever, so becoming twice as efficient earns you tokens twice as fast
+                  without taking anything from anyone. Each token is still worth exactly the work it
+                  cost. Nobody's work is confiscated, and nobody is paid for holding. Your money will not
+                  gain value by you doing nothing.</p>
+                  <p class="gt-mute">Emission is set by arithmetic, not policy. A hash with k leading zero
+                  bits appears with probability 2<sup>-k-1</sup> and pays 2<sup>k-40</sup> tokens, so every
+                  rarity level is worth exactly the same and the whole ladder sums to 44.5 · 2⁻⁴⁰ tokens
+                  per hash. Difficulty never retargets, so a miner with twice the hashrate mints twice as
+                  much permanently: competition shows up in price instead of in a difficulty adjustment,
+                  and early work keeps a surplus that decays only as supply accumulates. And because every
+                  token costs electricity and hardware to produce, its price is anchored to joules and
+                  tends toward an industrial commodity rather than a discretionary issuance schedule.</p>
+                </div>
+              </div>
 
   </div>
 </main>
@@ -727,6 +768,27 @@
     var button = document.getElementById("downloadBtn");
     button.href = RELEASES + "/download/" + asset.file;
     button.title = "Download for " + asset.label;
+  }
+
+  // The game theory window. It is portalled to the end of <main> and driven by
+  // JS rather than <details>, because a fixed-position child of the transforming
+  // hero is sized by the hero, not the viewport.
+  var gtOpen = document.getElementById("gtOpen");
+  var gtModal = document.getElementById("gtModal");
+  if (gtOpen && gtModal) {
+    var setOpen = function (open) {
+      gtModal.hidden = !open;
+      gtOpen.setAttribute("aria-expanded", open ? "true" : "false");
+    };
+    gtOpen.addEventListener("click", function () { setOpen(gtModal.hidden); });
+    var close = gtModal.querySelector(".gt-close");
+    if (close) close.addEventListener("click", function () { setOpen(false); });
+    gtModal.addEventListener("click", function (e) {
+      if (e.target === gtModal) setOpen(false);
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !gtModal.hidden) setOpen(false);
+    });
   }
 
   load().catch(function () {});
