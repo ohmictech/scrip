@@ -71,8 +71,17 @@
   }
   .field .vig{
     position:absolute;inset:0;
-    background:radial-gradient(120% 90% at 50% 40%, transparent 40%, rgba(0,10,14,.85) 100%);
+    background:radial-gradient(118% 92% at 50% 42%,transparent 32%,rgba(0,6,10,.80) 100%);
+    box-shadow:inset 0 0 200px 24px rgba(0,0,0,.5);
   }
+  .cursorlight{
+    position:fixed;left:0;top:0;width:540px;height:540px;border-radius:50%;
+    pointer-events:none;z-index:0;
+    background:radial-gradient(circle,rgba(0,255,70,.075),rgba(0,157,137,.03) 44%,transparent 68%);
+    transform:translate3d(-50vw,-50vh,0) translate(-50%,-50%);
+    opacity:0;transition:opacity .6s ease;
+  }
+  body.has-pointer .cursorlight{opacity:1}
 
   /* ---------- shell ---------- */
   .shell{
@@ -81,7 +90,33 @@
     display:flex;align-items:center;justify-content:center;
     padding:clamp(20px,3.4vw,44px) clamp(18px,4vw,40px);
   }
-  .panel{width:100%;max-width:1080px}
+  .panel{
+    width:100%;max-width:1080px;
+    position:relative;z-index:0;
+    /* pulls a little toward the pointer; the offsets come from --mx/--my */
+    transform:
+      perspective(1500px)
+      translate3d(calc(var(--mx,0) * 3px), calc(var(--my,0) * 3px), 0)
+      rotateX(calc(var(--my,0) * -1.05deg))
+      rotateY(calc(var(--mx,0) * 1.05deg));
+    transition:transform .12s linear;
+  }
+
+  /* ---------- pcb traces off the wordmark ---------- */
+  .traces{
+    position:absolute;inset:0;width:100%;height:100%;
+    z-index:-1;overflow:visible;pointer-events:none;
+  }
+  .tr-base{fill:none;stroke:rgba(0,255,70,.24);stroke-width:1}
+  .tr-pulse{
+    fill:none;stroke:rgba(150,255,190,.95);stroke-width:1.3;stroke-linecap:round;
+    filter:drop-shadow(0 0 6px rgba(0,255,70,.95));
+    stroke-dasharray:5 95;
+    animation:pulsar 7s linear infinite;
+  }
+  @keyframes pulsar{from{stroke-dashoffset:100}to{stroke-dashoffset:0}}
+  .tr-pad{fill:rgba(0,255,70,.6)}
+  .tr-pad-glow{fill:rgba(0,255,70,.14)}
 
   /* ---------- top rail ---------- */
   .rail{
@@ -120,7 +155,10 @@
   .minted .big{
     font-size:clamp(52px,8vw,116px);font-weight:700;letter-spacing:-.05em;
     font-variant-numeric:tabular-nums;color:var(--white);
-    text-shadow:0 0 70px rgba(0,255,70,.30);
+    text-shadow:
+      calc(var(--ca,0) * 4px) 0 rgba(255,42,86,.45),
+      calc(var(--ca,0) * -4px) 0 rgba(0,214,255,.4),
+      0 0 70px rgba(0,255,70,.30);
     transition:color .5s ease;
   }
   .minted .big.flash{color:var(--green)}
@@ -149,7 +187,11 @@
     font-size:clamp(32px,6.9vw,78px);line-height:1.04;font-weight:400;
     letter-spacing:.2em;
     color:var(--white);
-    text-shadow:0 0 46px rgba(0,255,70,.22);
+    /* fringing widens as --ca rises while the pointer moves */
+    text-shadow:
+      calc(var(--ca,0) * 3.5px) 0 rgba(255,42,86,.5),
+      calc(var(--ca,0) * -3.5px) 0 rgba(0,214,255,.45),
+      0 0 46px rgba(0,255,70,.20);
   }
   .tag{
     margin-top:14px;font-size:clamp(12px,1.35vw,14px);line-height:1.7;
@@ -397,8 +439,9 @@
   .d4{animation-delay:.32s}.d5{animation-delay:.41s}.d6{animation-delay:.5s}
 
   @media (prefers-reduced-motion:reduce){
-    .halo,.ping,.gt-open::before{animation:none}
+    .halo,.ping,.gt-open::before,.tr-pulse{animation:none}
     .rise{animation:none;opacity:1;transform:none}
+    .panel{transform:none}
     *{transition:none!important}
   }
 </style>
@@ -410,10 +453,13 @@
   <div class="dots"></div>
   <div class="ghost">SCRIP</div>
   <div class="vig"></div>
+  <div class="cursorlight" id="cursorlight"></div>
 </div>
 
 <main class="shell">
   <div class="panel" id="panel">
+
+    <svg class="traces" id="traces" aria-hidden="true" preserveAspectRatio="none"></svg>
 
     <div class="rail rise d1">
       <div class="left"><span class="ping"></span><span id="net">connecting</span></div>
@@ -427,8 +473,7 @@
         </div>
         <div>
           <h1 class="title">SCRIP</h1>
-          <p class="tag">Money that costs work. Every token in existence was found by hashing, and the
-          chain will accept nothing else. <b>No premine, sale, issuer, or admin keys.</b></p>
+          <p class="tag">Money that is fixed to work. Every token in existence was found by the same hashing. <b>No premine, sale, issuer, or admin keys.</b></p>
           <div class="gt">
             <button class="gt-open" id="gtOpen" type="button" aria-haspopup="dialog" aria-expanded="false">
               <span class="dot"></span>
@@ -505,32 +550,33 @@
       <span class="note">contact <a class="mail" href="mailto:d@scrip.credit">d@scrip.credit</a> · <span id="status">reading chain</span></span>
     </div>
 
-              <div class="gt-modal" id="gtModal" hidden>
-                <div class="gt-card">
-                  <button class="gt-close" type="button" aria-label="Close">&times;</button>
-                  <p class="gt-lead">Money should represent a fixed quantity of work, not a fixed
-                  quantity of money. Fix the work and let the supply float, and efficiency stops being a
-                  transfer from the productive to the passive.</p>
-                  <p class="gt-white">A fixed supply means every productivity gain is captured by whoever
-                  already holds money. Produce twice as efficiently and competition forces you to sell
-                  cheaper; the surplus lands in the purchasing power of existing holders, not in your
-                  pocket. Efficiency becomes a subsidy from workers to hoarders. Scrip fixes the work per
-                  token instead, forever, so becoming twice as efficient earns you tokens twice as fast
-                  without taking anything from anyone. Each token is still worth exactly the work it
-                  cost. Nobody's work is confiscated, and nobody is paid for holding. Your money will not
-                  gain value by you doing nothing.</p>
-                  <p class="gt-mute">Emission is set by arithmetic, not policy. A hash with k leading zero
-                  bits appears with probability 2<sup>-k-1</sup> and pays 2<sup>k-40</sup> tokens, so every
-                  rarity level is worth exactly the same and the whole ladder sums to 44.5 · 2⁻⁴⁰ tokens
-                  per hash. Difficulty never retargets, so a miner with twice the hashrate mints twice as
-                  much permanently: competition shows up in price instead of in a difficulty adjustment,
-                  and early work keeps a surplus that decays only as supply accumulates. And because every
-                  token costs electricity and hardware to produce, its price is anchored to joules and
-                  tends toward an industrial commodity rather than a discretionary issuance schedule.</p>
-                </div>
-              </div>
 
   </div>
+
+          <div class="gt-modal" id="gtModal" hidden>
+            <div class="gt-card">
+              <button class="gt-close" type="button" aria-label="Close">&times;</button>
+              <p class="gt-lead">Money should represent a fixed quantity of work. Fix the work and let the supply float, and efficiency stops being a
+              transfer from the productive to the passive.</p>
+              <p class="gt-white">A fixed supply means every productivity gain is captured by whoever
+              already holds money. Produce twice as efficiently and competition forces you to sell
+              cheaper; the surplus lands in the purchasing power of existing holders, not in your
+              pocket. Efficiency becomes a subsidy from workers to hoarders. Scrip fixes the work per
+              token instead, forever, so becoming twice as efficient earns you tokens twice as fast
+              without taking anything from anyone. Each token is still worth exactly the work it
+              cost. Nobody's work is confiscated, and nobody is paid for holding. Scrip refuses to tell you your money will
+              gain value by your inaction.</p>
+              <p class="gt-mute">Emission is set by arithmetic instead of policy. A hash with k leading zero
+              bits appears with probability 2<sup>-k-1</sup> and pays 2<sup>k-40</sup> tokens, so every
+              rarity level is worth exactly the same and the whole ladder sums to 44.5 · 2⁻⁴⁰ tokens
+              per hash. Difficulty never retargets, so a miner with twice the hashrate mints twice as
+              much permanently: competition shows up in price rather than a difficulty adjustment,
+              and early work keeps a surplus that decays only as supply accumulates. Because every
+              token costs electricity and hardware to produce, its price is anchored to joules and
+              tends toward an industrial commodity rather than following the popular model of arbitrary scarcity enforced
+            by artificial constraints.</p>
+            </div>
+          </div>
 </main>
 
 <script>
@@ -829,6 +875,117 @@
       if (e.key === "Escape" && !gtModal.hidden) setOpen(false);
     });
   }
+
+  // PCB traces running out of the wordmark: a dim rail plus a bright pulse that
+  // travels along it. Drawn from the measured title box so it follows reflow.
+  function tracePath(d, delay) {
+    return '<path class="tr-base" pathLength="100" d="' + d + '"/>' +
+      '<path class="tr-pulse" pathLength="100" d="' + d +
+      '" style="animation-delay:-' + delay.toFixed(2) + 's"/>';
+  }
+
+  function tracePad(x, y) {
+    return '<circle class="tr-pad-glow" cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="6"/>' +
+      '<circle class="tr-pad" cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="1.7"/>';
+  }
+
+  function buildTraces() {
+    var svg = document.getElementById("traces");
+    var panel = document.getElementById("panel");
+    var title = document.querySelector(".title");
+    if (!svg || !panel || !title) return;
+
+    var pr = panel.getBoundingClientRect();
+    var tr = title.getBoundingClientRect();
+    if (!pr.width || !tr.width) return;
+    svg.setAttribute("viewBox", "0 0 " + Math.round(pr.width) + " " + Math.round(pr.height));
+
+    var x0 = tr.left - pr.left;
+    var x1 = tr.right - pr.left;
+    var y0 = tr.top - pr.top;
+    var h = tr.height;
+    var parts = [];
+
+    // Rightwards, orthogonal with 45 degree jogs, as a board would route.
+    var lanes = [
+      { f: 0.24, a: 54, dy: 26, b: 46 },
+      { f: 0.52, a: 96, dy: -22, b: 60 },
+      { f: 0.80, a: 40, dy: 30, b: 74 }
+    ];
+    lanes.forEach(function (l, i) {
+      var y = y0 + h * l.f;
+      var endY = y - l.dy;
+      var d = "M" + x1.toFixed(1) + "," + y.toFixed(1) +
+        " h" + l.a + " l" + Math.abs(l.dy) + "," + (-l.dy).toFixed(1) + " h" + l.b;
+      var endX = x1 + l.a + Math.abs(l.dy) + l.b;
+      parts.push(tracePath(d, i * 2.1));
+      parts.push(tracePad(endX, endY));
+    });
+
+    // Two risers off the top edge.
+    [
+      { f: 0.16, up: 66, out: 40 },
+      { f: 0.60, up: 104, out: 30 }
+    ].forEach(function (u, i) {
+      var x = x0 + (x1 - x0) * u.f;
+      var d = "M" + x.toFixed(1) + "," + y0.toFixed(1) +
+        " v-" + u.up + " l" + u.out + ",-" + u.out;
+      parts.push(tracePath(d, 1 + i * 2.4));
+      parts.push(tracePad(x + u.out, y0 - u.up - u.out));
+    });
+
+    svg.innerHTML = parts.join("");
+  }
+
+  var resizeTimer = 0;
+  window.addEventListener("resize", function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(buildTraces, 180);
+  });
+  buildTraces();
+  setTimeout(buildTraces, 600);
+
+  // Pointer field: fringing that widens as the mouse moves, a slight pull of the
+  // content toward it, and a soft light that follows. Skipped entirely for
+  // reduced motion and for coarse pointers, where there is no cursor to track.
+  (function pointerField() {
+    var fine = window.matchMedia("(pointer: fine)").matches;
+    var still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!fine || still) return;
+
+    var root = document.documentElement;
+    var light = document.getElementById("cursorlight");
+    var tx = 0, ty = 0, mx = 0, my = 0, ca = 0, caTarget = 0, raf = 0;
+
+    function frame() {
+      mx += (tx - mx) * 0.12;
+      my += (ty - my) * 0.12;
+      ca += (caTarget - ca) * 0.2;
+      caTarget *= 0.955;
+      root.style.setProperty("--mx", mx.toFixed(3));
+      root.style.setProperty("--my", my.toFixed(3));
+      root.style.setProperty("--ca", ca.toFixed(3));
+      if (Math.abs(mx - tx) < 0.001 && Math.abs(my - ty) < 0.001 && ca < 0.002 && caTarget < 0.002) {
+        raf = 0;
+        root.style.setProperty("--ca", "0");
+        return;
+      }
+      raf = requestAnimationFrame(frame);
+    }
+
+    window.addEventListener("pointermove", function (e) {
+      tx = (e.clientX / window.innerWidth - 0.5) * 2;
+      ty = (e.clientY / window.innerHeight - 0.5) * 2;
+      caTarget = 1;
+      if (light) {
+        light.style.transform =
+          "translate3d(" + e.clientX + "px," + e.clientY + "px,0) translate(-50%,-50%)";
+      }
+      if (!raf) raf = requestAnimationFrame(frame);
+    }, { passive: true });
+
+    document.body.classList.add("has-pointer");
+  })();
 
   load().catch(function () {});
   setInterval(function () { load().catch(function () {}); }, 30000);
