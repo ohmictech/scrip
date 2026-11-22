@@ -124,6 +124,10 @@
     transition:color .5s ease;
   }
   .minted .big.flash{color:var(--green)}
+  .minted .big small{
+    font-size:.4em;font-weight:400;letter-spacing:.02em;
+    color:var(--teal);margin-left:2px;
+  }
   .minted .s{margin-top:10px;font-size:10px;letter-spacing:.1em;color:var(--muted-2);text-transform:uppercase}
   .mark{position:relative;flex:0 0 auto;width:clamp(84px,10vw,124px);height:clamp(84px,10vw,124px)}
   .mark img{
@@ -436,7 +440,7 @@
       </div>
       <div class="minted">
         <div class="k">Mined</div>
-        <div class="big" id="mintedBig">0</div>
+        <div class="big" id="mintedBig"><span id="mintedNum">0</span><small id="mintedSuf"></small></div>
         <div class="s">SCRIP</div>
       </div>
     </div>
@@ -545,6 +549,8 @@
   var el = {
     net: document.getElementById("net"),
     mintedBig: document.getElementById("mintedBig"),
+    mintedNum: document.getElementById("mintedNum"),
+    mintedSuf: document.getElementById("mintedSuf"),
     emission: document.getElementById("emission"),
     countdown: document.getElementById("countdown"),
     epochSub: document.getElementById("epochSub"),
@@ -562,6 +568,22 @@
 
   function hexBig(h) { return BigInt(h); }
   function commas(n) { return n.toLocaleString("en-US"); }
+
+  // Past a million the exact digits stop being useful and start breaking the
+  // layout, so the headline figure abbreviates and the exact total moves into a
+  // tooltip. Under a million it stays literal: 50,000 still reads fine.
+  function compact(n) {
+    var unit = n >= 1e12 ? { d: 1e12, s: "T" }
+      : n >= 1e9 ? { d: 1e9, s: "B" }
+      : n >= 1e6 ? { d: 1e6, s: "M" }
+      : null;
+    if (!unit) return { value: commas(n), suffix: "" };
+    var scaled = n / unit.d;
+    var digits = scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2;
+    var text = scaled.toFixed(digits);
+    if (text.indexOf(".") > -1) text = text.replace(/0+$/, "").replace(/\.$/, "");
+    return { value: text, suffix: unit.s };
+  }
 
   // tokens/hash = (129 - base)/2 * 2^-base, so this many hashes mint one token
   function workPerToken(base) {
@@ -626,7 +648,16 @@
     if (bn) setNum(el.block, commas(Number(hexBig(bn))));
     if (gp) setNum(el.gas, (Number(hexBig(gp)) / 1e9).toFixed(3));
 
-    if (supply) setNum(el.mintedBig, commas(Number(hexBig(supply))));
+    if (supply) {
+      var s = Number(hexBig(supply));
+      var c = compact(s);
+      if (el.mintedNum.textContent !== c.value) {
+        el.mintedNum.textContent = c.value;
+        flash(el.mintedNum);
+      }
+      el.mintedSuf.textContent = c.suffix;
+      el.mintedBig.title = commas(s) + " SCRIP mined";
+    }
 
     if (base) {
       var b = Number(hexBig(base));
