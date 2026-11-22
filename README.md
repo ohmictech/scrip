@@ -4,7 +4,7 @@
 
 <h1 align="center">Scrip miner</h1>
 
-<p align="center">A reference CPU miner for Scrip, a token issued only by proof of work.</p>
+<p align="center">A reference miner for Scrip, a token issued only by work.</p>
 
 ---
 
