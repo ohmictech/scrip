@@ -99,6 +99,7 @@
 
   /* ---------- hero ---------- */
   .hero{
+    position:relative;z-index:10;
     display:grid;grid-template-columns:minmax(0,1fr) auto;
     align-items:center;gap:clamp(24px,4vw,56px);
     margin-bottom:clamp(26px,4.5vh,46px);
@@ -228,26 +229,87 @@
   .addr b{color:var(--white);font-weight:500}
   .note code{color:rgba(0,255,70,.6)}
 
-  /* ---------- game theory ---------- */
-  .gt{margin-bottom:clamp(14px,2.4vh,22px)}
+  /* ---------- game theory module ---------- */
+  .gt{position:relative;margin-top:16px}
+  .gt details{display:inline-block}
   .gt summary{
-    list-style:none;cursor:pointer;
-    display:flex;align-items:center;justify-content:space-between;gap:12px;
-    padding:13px 18px;border-radius:14px;
-    font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;
+    position:relative;overflow:hidden;list-style:none;cursor:pointer;
+    display:inline-flex;align-items:center;gap:9px;
+    padding:9px 13px;border-radius:10px;
+    font-size:9px;letter-spacing:.2em;text-transform:uppercase;
     color:rgba(244,253,250,.82);
-    background:linear-gradient(100deg,rgba(0,157,137,.20),rgba(0,49,57,.36) 46%,rgba(0,255,70,.08));
-    transition:color .2s ease,background .25s ease;
+    background:linear-gradient(135deg,rgba(0,157,137,.30),rgba(0,49,57,.52) 55%,rgba(0,255,70,.14));
+    -webkit-backdrop-filter:blur(12px) saturate(1.25);
+            backdrop-filter:blur(12px) saturate(1.25);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.16),
+      inset 0 0 0 1px rgba(0,255,70,.08),
+      0 10px 30px -14px rgba(0,0,0,.9),
+      0 0 24px -8px rgba(0,255,70,.22);
+    transition:color .2s ease,box-shadow .3s ease,transform .2s ease;
   }
   .gt summary::-webkit-details-marker{display:none}
-  .gt summary:hover{color:var(--green);background:linear-gradient(100deg,rgba(0,157,137,.30),rgba(0,49,57,.42) 46%,rgba(0,255,70,.13))}
-  .gt summary .arw{font-size:15px;line-height:1;letter-spacing:0;color:var(--teal);transition:transform .25s ease,color .2s ease}
-  .gt summary:hover .arw{color:var(--green)}
-  .gt[open] summary .arw{transform:rotate(45deg)}
-  .gt-text{
-    margin-top:15px;font-size:12px;line-height:1.85;
-    color:rgba(244,253,250,.68);max-width:100ch;
+  /* glass grid: two hairlines of gradient, masked to a soft ellipse so it reads
+     as etched glass rather than a hatch pattern */
+  .gt summary::before{
+    content:"";position:absolute;inset:-45%;pointer-events:none;
+    background-image:
+      linear-gradient(rgba(0,255,70,.6) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(0,255,70,.6) 1px,transparent 1px);
+    background-size:6px 6px;
+    -webkit-mask-image:radial-gradient(78% 100% at 26% 50%,#000 0%,transparent 82%);
+            mask-image:radial-gradient(78% 100% at 26% 50%,#000 0%,transparent 82%);
+    opacity:.3;
+    animation:gridDrift 14s linear infinite;
+    transition:transform .65s cubic-bezier(.2,.7,.2,1),opacity .4s ease;
   }
+  @keyframes gridDrift{
+    from{background-position:0 0,0 0}
+    to{background-position:6px 6px,6px 6px}
+  }
+  .gt summary:hover::before,.gt details[open] summary::before{
+    transform:translate3d(7px,-5px,0) scale(1.16);opacity:.5;
+  }
+  .gt summary:hover{
+    color:var(--green);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.22),
+      inset 0 0 0 1px rgba(0,255,70,.2),
+      0 14px 34px -14px rgba(0,0,0,.95),
+      0 0 32px -6px rgba(0,255,70,.4);
+  }
+  .gt summary:active{transform:translateY(1px)}
+  .gt summary span{position:relative;z-index:2}
+  .gt .dot{
+    width:5px;height:5px;border-radius:50%;background:var(--green);
+    box-shadow:0 0 9px 1px rgba(0,255,70,.7);
+    animation:ping 2.4s ease-in-out infinite;
+  }
+  .gt .arw{
+    font-size:12px;line-height:1;letter-spacing:0;color:var(--teal);
+    transition:transform .3s ease,color .2s ease;
+  }
+  .gt details[open] .arw{transform:rotate(45deg)}
+  .gt summary:hover .arw{color:var(--green)}
+  /* Anchored panel: overlays instead of pushing layout, so the page stays one
+     screen while the explanation is open. */
+  .gt-panel{
+    position:absolute;left:0;top:calc(100% + 10px);z-index:6;
+    width:min(500px,calc(100vw - 40px));
+    padding:16px 18px;border-radius:12px;
+    font-size:11.5px;line-height:1.78;color:rgba(244,253,250,.85);
+    /* opaque, not translucent: this overlays the stat grid and has to win */
+    background:linear-gradient(158deg,#00404a 0%,#002830 38%,#001419 100%);
+    -webkit-backdrop-filter:blur(18px) saturate(1.1);
+            backdrop-filter:blur(18px) saturate(1.1);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.12),
+      inset 0 0 0 1px rgba(0,255,70,.10),
+      0 26px 64px -22px rgba(0,0,0,.95),
+      0 0 44px -12px rgba(0,157,137,.45);
+    animation:pop .22s cubic-bezier(.2,.7,.2,1);
+  }
+  @keyframes pop{from{transform:translateY(-6px)}to{transform:none}}
   .mail{
     color:var(--teal);text-decoration:none;
     transition:color .2s ease,text-shadow .2s ease;
@@ -276,9 +338,9 @@
     .stat .v{font-size:15px}
     .stat .sub{font-size:9px}
     .chal{padding:10px 13px;margin-bottom:12px}
-    .gt{margin-bottom:12px}
-    .gt summary{padding:11px 14px;font-size:9.5px}
-    .gt-text{font-size:11px;line-height:1.7;margin-top:12px}
+    .gt{margin-top:12px}
+    .gt summary{padding:8px 11px;font-size:8.5px}
+    .gt-panel{width:calc(100vw - 36px);font-size:11px}
     .btn{flex:1;justify-content:center;padding:12px 14px;font-size:11px}
     .actions{margin-bottom:12px;gap:8px}
     .foot{flex-direction:column;align-items:flex-start;gap:8px;font-size:9.5px;line-height:1.5}
@@ -299,7 +361,7 @@
   .d4{animation-delay:.32s}.d5{animation-delay:.41s}.d6{animation-delay:.5s}
 
   @media (prefers-reduced-motion:reduce){
-    .halo,.ping{animation:none}
+    .halo,.ping,.gt summary::before{animation:none}
     .rise{animation:none;opacity:1;transform:none}
     *{transition:none!important}
   }
@@ -331,6 +393,23 @@
           <h1 class="title">SCRIP</h1>
           <p class="tag">Money that costs work. Every token in existence was found by hashing, and the
           chain will accept nothing else. <b>No premine, no sale, no issuer, no admin keys.</b></p>
+          <div class="gt">
+            <details>
+              <summary>
+                <span class="dot"></span>
+                <span>game theory</span>
+                <span class="arw">+</span>
+              </summary>
+              <p class="gt-panel">Emission is set by arithmetic, not policy. A hash with k leading zero
+              bits appears with probability 2<sup>-k-1</sup> and pays 2<sup>k-40</sup> tokens, so every
+              rarity level is worth exactly the same and the whole ladder sums to 44.5 · 2⁻⁴⁰ tokens per
+              hash. Difficulty never retargets, so a miner with twice the hashrate mints twice as much
+              permanently: competition shows up in price instead of in a difficulty adjustment, and early
+              work keeps a surplus that decays only as supply accumulates. And because every token costs
+              electricity and hardware to produce, its price is anchored to joules and tends toward an
+              industrial commodity rather than a discretionary issuance schedule.</p>
+            </details>
+          </div>
         </div>
       </div>
       <div class="minted">
@@ -391,23 +470,6 @@
         <b id="shortAddr">0x50F1...e9E9</b>
         <button class="copy" id="copyAddr" type="button">copy contract</button>
       </span>
-    </div>
-
-    <div class="gt rise d6">
-      <details>
-        <summary>
-          <span>game theory</span>
-          <span class="arw">+</span>
-        </summary>
-        <p class="gt-text">Emission is set by arithmetic, not policy. A hash with k leading zero
-        bits appears with probability 2<sup>-k-1</sup> and pays 2<sup>k-40</sup> tokens, so every rarity
-        level is worth exactly the same and the whole ladder sums to 44.5 · 2⁻⁴⁰ tokens per hash.
-        Difficulty never retargets, so a miner with twice the hashrate mints twice as much permanently:
-        competition shows up in price instead of in a difficulty adjustment, and early work keeps a
-        surplus that decays only as supply accumulates. And because every token costs electricity and
-        hardware to produce, its price is anchored to joules and tends toward an industrial commodity
-        rather than a discretionary issuance schedule.</p>
-      </details>
     </div>
 
     <div class="foot rise d6">
