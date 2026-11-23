@@ -18,6 +18,18 @@ pub struct Hit {
 const CHUNK: u64 = 4096;
 const MASK_48: u64 = 0x0000_FFFF_FFFF_FFFF;
 
+/// Stream ids in the top 16 bits of the counter that the GPU engines own.
+///
+/// The CPU grinders put their thread index there, and thread 0 owns the whole
+/// low-48-bit space. GPUs take the top 256 ids so that a hybrid or multi-GPU run
+/// cannot re-grind another engine's counters, which would burn electricity twice
+/// and produce duplicate proofs where one of each pair reverts.
+pub const GPU_STREAM_BASE: u16 = 0xFF00;
+
+/// Most GPUs that can be given a distinct stream id.
+#[cfg(feature = "gpu")]
+pub const MAX_GPU_ENGINES: usize = (u16::MAX - GPU_STREAM_BASE) as usize + 1;
+
 /// Spawns `threads` workers that grind against one fixed prefix until `stop`.
 ///
 /// Nonce layout: 24 zero bytes then a big-endian u64 whose top 16 bits are the
@@ -34,7 +46,11 @@ pub fn spawn_round(
     progress: Arc<AtomicU64>,
     hits: Sender<Hit>,
 ) -> Vec<JoinHandle<()>> {
-    let threads = threads.clamp(1, u16::MAX as usize);
+    // The top 16 bits of the counter word hold the stream index: 0..=0xFEFF for
+    // CPU threads, 0xFF00..=0xFFFF reserved for GPU engines (`gpu::stream_id`).
+    // Without that reservation a hybrid or multi-GPU run would grind the same
+    // nonces twice.
+    let threads = threads.clamp(1, GPU_STREAM_BASE as usize);
 
     (0..threads)
         .map(|id| {
@@ -79,7 +95,28 @@ pub fn spawn_round(
 
 #[cfg(test)]
 mod tests {
+    use super::GPU_STREAM_BASE;
     use crate::tx::{challenge, digest_of, keccak256};
+
+    /// A hybrid run puts the CPU threads and the GPU in the same 64-bit nonce
+    /// word, so their stream ids must never overlap. CPU ids top out one below
+    /// `GPU_STREAM_BASE`, which leaves the top 256 ids to the GPU engines. If
+    /// this breaks, a hybrid run grinds duplicate nonces: wasted electricity, and
+    /// one of each duplicate pair reverts on chain.
+    #[test]
+    fn cpu_streams_never_take_a_reserved_gpu_stream() {
+        let threads = usize::min(64, GPU_STREAM_BASE as usize);
+        assert_eq!(threads.clamp(1, GPU_STREAM_BASE as usize), threads, "clamp must not shrink this");
+
+        for id in 0..threads as u64 {
+            let base = id << 48;
+            assert!((base >> 48) < GPU_STREAM_BASE as u64, "cpu thread {id} collides with gpu streams");
+        }
+
+        // The clamp's own ceiling is what guarantees the reservation holds.
+        let max_id = (GPU_STREAM_BASE - 1) as u64;
+        assert_eq!((max_id << 48) >> 48, GPU_STREAM_BASE as u64 - 1, "highest cpu stream id");
+    }
 
     /// The grind preimage must be byte-identical to what the contract hashes.
     /// Both earlier bugs (8-byte epoch, 8-byte nonce) were exactly this class.

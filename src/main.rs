@@ -5,6 +5,8 @@
 
 mod config;
 mod grind;
+#[cfg(feature = "gpu")]
+mod gpu;
 mod rpc;
 mod tx;
 mod wallet;
@@ -35,6 +37,37 @@ fn run() -> Result<(), String> {
     if args.help {
         print_help();
         return Ok(());
+    }
+    // Device discovery and the kernel self-test do not need a config or a wallet,
+    // so they work on a fresh checkout and cannot touch funds.
+    if args.devices {
+        println!("scrip-miner {}", env!("CARGO_PKG_VERSION"));
+        #[cfg(feature = "gpu")]
+        {
+            println!("{}", gpu::describe_devices());
+            println!();
+            println!("selected   {}", match gpu_probe() {
+                Ok(d) => d,
+                Err(e) => format!("none for mining ({e})"),
+            });
+        }
+        #[cfg(not(feature = "gpu"))]
+        {
+            println!("gpu        this build has no GPU support (rebuild with --features gpu)");
+        }
+        return Ok(());
+    }
+    if args.gpu_selftest {
+        println!("scrip-miner {}", env!("CARGO_PKG_VERSION"));
+        #[cfg(feature = "gpu")]
+        {
+            println!("gpu        {}", gpu::selftest()?);
+            return Ok(());
+        }
+        #[cfg(not(feature = "gpu"))]
+        {
+            return Err("this build has no GPU support (rebuild with --features gpu)".into());
+        }
     }
 
     let config_path = args.config.clone().unwrap_or_else(|| PathBuf::from("config.toml"));
@@ -108,13 +141,25 @@ fn run() -> Result<(), String> {
         u64::from_be_bytes(seed) & 0x0000_FFFF_FFFF_FFFF
     };
 
+    // `--device` beats the config. A GPU build still defaults to whatever the
+    // config says, so upgrading the binary never changes mining behaviour.
+    let device_pref = args.device.clone().unwrap_or_else(|| cfg.device.clone());
+    let (backend, device_desc, auto_hashrate) = resolve_backend(&device_pref, threads, run_start)?;
+
     // `floor = 0` means auto: measure this machine and pick the rarity that lands
     // near `target_proofs_per_day`. Without it the default floor equals
     // BASE_DIFFICULTY, which floods the chain from a GPU and starves a CPU.
     let (floor, measured) = if cfg.floor == 0 {
-        println!();
-        println!("measuring hashrate (3s)...");
-        let h = measure_hashrate(threads, run_start);
+        // Device choice already measured the winning engine, so only measure when
+        // the device was pinned explicitly.
+        let h = match auto_hashrate {
+            Some(h) => h,
+            None => {
+                println!();
+                println!("measuring hashrate (3s)...");
+                measure_hashrate(backend, threads, run_start)
+            }
+        };
         let f = auto_floor(h, base, cfg.target_proofs_per_day);
         println!(
             "           {:.2} MH/s -> floor {} (target {:.1} proofs/day, est {:.2})",
@@ -156,6 +201,19 @@ fn run() -> Result<(), String> {
     println!("payout     {}", hex_addr(&payout));
     println!("gas wallet {}   balance {} wei", wallet.address_hex(), balance);
     println!("base       {base}   floor {floor}{}   threads {threads}", if measured.is_some() { " (auto)" } else { "" });
+    println!(
+        "device     {}{}",
+        match backend {
+            Backend::Cpu => "cpu".to_string(),
+            Backend::Gpu => format!("gpu {device_desc}"),
+            Backend::Both => format!("cpu+gpu {device_desc}"),
+        },
+        if device_pref.trim().eq_ignore_ascii_case("auto") || device_pref.trim().is_empty() {
+            "   (auto)"
+        } else {
+            ""
+        }
+    );
     println!("rpc        {}", cfg.rpc);
     if chain_behind > 120 {
         println!("note       head block is {chain_behind}s old; the next block follows the wall clock");
@@ -192,7 +250,8 @@ fn run() -> Result<(), String> {
 
         let stop = Arc::new(AtomicBool::new(false));
         let progress = Arc::new(AtomicU64::new(0));
-        let handles = grind::spawn_round(
+        let handles = spawn_backend(
+            backend,
             threads,
             tx::grind_prefix(&chal, &payout, floor),
             floor,
@@ -270,12 +329,23 @@ impl Submitter {
         }]);
         let data_hex = format!("0x{}", hex::encode(&calldata));
 
-        let gas_price = self.rpc.gas_price().unwrap_or(20 * GWEI);
-        let max_fee = (gas_price.saturating_mul(2)).min(self.ceiling_wei).max(1);
-        if gas_price > self.ceiling_wei {
+        // Respect the ceiling by holding the proof, not by delaying and then
+        // submitting anyway. A max_fee clamped to a ceiling below the market gets
+        // rejected by the node and the proof is lost, so wait until gas clears and
+        // give up only when the epoch rolls, since the proof dies with the epoch.
+        let gas_price = loop {
+            let p = self.rpc.gas_price().unwrap_or(20 * GWEI);
+            if p <= self.ceiling_wei {
+                break p;
+            }
+            if hit.epoch != tx::epoch_at(now_secs()) {
+                println!("  gas above ceiling at the epoch boundary; dropped a z={} proof", hit.zeros);
+                return;
+            }
             println!("  gas price above ceiling, waiting one tick");
             thread::sleep(Duration::from_secs(12));
-        }
+        };
+        let max_fee = gas_price.saturating_mul(2).min(self.ceiling_wei).max(1);
         let priority = GWEI.min(max_fee);
 
         let gas_limit = self
@@ -333,16 +403,25 @@ impl Submitter {
 struct Args {
     config: Option<PathBuf>,
     contract: Option<String>,
+    device: Option<String>,
+    devices: bool,
+    gpu_selftest: bool,
     help: bool,
 }
 
 impl Args {
     fn parse(mut argv: impl Iterator<Item = String>) -> Result<Self, String> {
-        let mut args = Args { config: None, contract: None, help: false };
+        let mut args =
+            Args { config: None, contract: None, device: None, devices: false, gpu_selftest: false, help: false };
         while let Some(a) = argv.next() {
             match a.as_str() {
                 "--config" => args.config = Some(PathBuf::from(argv.next().ok_or("--config needs a path")?)),
                 "--contract" => args.contract = Some(argv.next().ok_or("--contract needs an address")?),
+                "--device" => {
+                    args.device = Some(argv.next().ok_or("--device needs auto, cpu, gpu or both")?);
+                }
+                "--devices" => args.devices = true,
+                "--gpu-selftest" => args.gpu_selftest = true,
                 "--help" | "-h" => args.help = true,
                 other => return Err(format!("unknown argument {other} (try --help)")),
             }
@@ -355,12 +434,17 @@ fn print_help() {
     println!("scrip-miner {}", env!("CARGO_PKG_VERSION"));
     println!();
     println!("USAGE:");
-    println!("    scrip-miner [--config <path>] [--contract <address>]");
+    println!("    scrip-miner [--config <path>] [--contract <address>] [--device <auto|cpu|gpu|both>]");
+    println!("    scrip-miner --devices        list GPU devices and exit");
+    println!("    scrip-miner --gpu-selftest   check the GPU kernel against the CPU and exit");
     println!();
     println!("On first run this creates config.toml and wallet.json in the working");
     println!("directory, then prints the address to fund with gas. Set `contract` in");
     println!("config.toml (or pass --contract) and start it again: it mines and submits");
     println!("on its own.");
+    println!();
+    println!("GPU mining needs a build with the `gpu` feature:");
+    println!("    cargo build --release --features gpu");
 }
 
 fn selector(signature: &str) -> String {
@@ -402,15 +486,136 @@ fn hms(secs: u64) -> String {
     format!("{}h{:02}m{:02}s", secs / 3600, (secs % 3600) / 60, secs % 60)
 }
 
+/// Which engine grinds. Both report hits on the same channel, so the submitter
+/// is unaware of the choice.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Backend {
+    Cpu,
+    Gpu,
+    /// CPU threads and one GPU together. Disjoint nonce ranges, one shared
+    /// submitter, so the two never grind the same counter.
+    Both,
+}
+
+#[cfg(feature = "gpu")]
+fn gpu_probe() -> Result<String, String> {
+    gpu::info()
+}
+
+#[cfg(not(feature = "gpu"))]
+fn gpu_probe() -> Result<String, String> {
+    Err("this build has no GPU support (rebuild with `cargo build --release --features gpu`)".into())
+}
+
+/// Resolves the configured device name. `auto` means "GPU when this build can
+/// use one", while an explicit `gpu` that cannot be honoured is an error rather
+/// than a silent fall back to the CPU, which would quietly mine far slower.
+/// Resolves the configured device name.
+///
+/// `auto` measures the CPU and the GPU for three seconds each and keeps the
+/// faster one, so the default is genuinely "use the strongest hardware here"
+/// rather than a guess about which engine wins. Explicit choices are never
+/// second-guessed, and an explicit `gpu` or `both` that cannot be honoured is an
+/// error rather than a quiet fall back to the CPU.
+///
+/// Returns the chosen backend, a description for the header, and the hashrate
+/// already measured while choosing (so the floor does not re-measure).
+fn resolve_backend(pref: &str, threads: usize, run_start: u64) -> Result<(Backend, String, Option<f64>), String> {
+    match pref.trim().to_ascii_lowercase().as_str() {
+        "cpu" => Ok((Backend::Cpu, "cpu".into(), None)),
+        "gpu" => match gpu_probe() {
+            Ok(d) => Ok((Backend::Gpu, d, None)),
+            Err(e) => Err(format!("device = \"gpu\" was requested but is unavailable: {e}")),
+        },
+        "both" | "hybrid" | "cpu+gpu" => match gpu_probe() {
+            Ok(d) => Ok((Backend::Both, d, None)),
+            Err(e) => Err(format!("device = \"both\" was requested but the GPU is unavailable: {e}")),
+        },
+        "auto" | "" => {
+            println!();
+            println!("choosing device (3s per engine)...");
+            let cpu_h = measure_hashrate(Backend::Cpu, threads, run_start);
+            println!("           cpu {:.2} MH/s", cpu_h / 1e6);
+
+            match gpu_probe() {
+                Ok(d) => {
+                    let gpu_h = measure_hashrate(Backend::Gpu, threads, run_start);
+                    println!("           gpu {:.2} MH/s   {d}", gpu_h / 1e6);
+                    if gpu_h > cpu_h {
+                        Ok((Backend::Gpu, d, Some(gpu_h)))
+                    } else {
+                        println!("           cpu is faster on this machine; using cpu");
+                        Ok((Backend::Cpu, "cpu".into(), Some(cpu_h)))
+                    }
+                }
+                Err(_) => Ok((Backend::Cpu, "cpu".into(), Some(cpu_h))),
+            }
+        }
+        other => Err(format!("unknown device \"{other}\": use auto, cpu, gpu or both")),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn spawn_backend(
+    backend: Backend,
+    threads: usize,
+    prefix: [u8; 53],
+    floor: u8,
+    epoch: u64,
+    run_start: u64,
+    stop: Arc<AtomicBool>,
+    progress: Arc<AtomicU64>,
+    hits: mpsc::Sender<grind::Hit>,
+) -> Vec<thread::JoinHandle<()>> {
+    match backend {
+        Backend::Cpu => grind::spawn_round(threads, prefix, floor, epoch, run_start, stop, progress, hits),
+        Backend::Gpu => {
+            #[cfg(feature = "gpu")]
+            {
+                let _ = threads;
+                gpu::spawn_round(prefix, floor, epoch, run_start, stop, progress, hits)
+            }
+            #[cfg(not(feature = "gpu"))]
+            {
+                let _ = (prefix, floor, epoch, run_start, stop, progress, hits);
+                Vec::new()
+            }
+        }
+        Backend::Both => {
+            #[cfg_attr(not(feature = "gpu"), allow(unused_mut))]
+            let mut handles = grind::spawn_round(
+                threads,
+                prefix,
+                floor,
+                epoch,
+                run_start,
+                Arc::clone(&stop),
+                Arc::clone(&progress),
+                hits.clone(),
+            );
+            #[cfg(feature = "gpu")]
+            {
+                handles.extend(gpu::spawn_round(prefix, floor, epoch, run_start, stop, progress, hits));
+            }
+            #[cfg(not(feature = "gpu"))]
+            {
+                let _ = (prefix, floor, epoch, run_start, stop, progress, hits);
+            }
+            handles
+        }
+    }
+}
+
 /// Measures this machine with the real grind loop, so the number reflects the
 /// same code path (and core count) that will actually mine.
-fn measure_hashrate(threads: usize, run_start: u64) -> f64 {
+fn measure_hashrate(backend: Backend, threads: usize, run_start: u64) -> f64 {
     const WARMUP_MS: u64 = 800;
     const SECS: u64 = 3;
     let stop = Arc::new(AtomicBool::new(false));
     let progress = Arc::new(AtomicU64::new(0));
     let (tx, _rx) = mpsc::channel::<grind::Hit>();
-    let handles = grind::spawn_round(
+    let handles = spawn_backend(
+        backend,
         threads,
         [0u8; 53],
         255, // unreachable rarity: count hashes, never produce a hit

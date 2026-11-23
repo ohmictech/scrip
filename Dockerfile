@@ -5,7 +5,9 @@ FROM rust:1-slim-bookworm AS build
 WORKDIR /src
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
-RUN cargo build --release --locked
+# `gpu` adds the OpenCL backend, which is loaded at run time: the image still
+# works without a GPU, and a GPU container needs `--device /dev/dri`.
+RUN cargo build --release --locked --features gpu
 
 # Runtime stage. The binary links glibc, and TLS roots are compiled in via
 # webpki-roots, so there is nothing to install alongside it.

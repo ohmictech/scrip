@@ -12,8 +12,15 @@ keywords = ["mining", "proof-of-work", "ethereum", "keccak", "crypto"]
 categories = ["command-line-utilities", "cryptography"]
 include = ["/src", "/Cargo.toml", "/README.md", "/LICENSE", "/logo.png"]
 
+[features]
+default = []
+# OpenCL backend. Off by default so a plain `cargo build` needs no GPU runtime
+# and the release archives stay dependency-free; see README "GPU mining".
+gpu = ["dep:opencl3"]
+
 [dependencies]
 tiny-keccak = { version = "2.0", features = ["keccak"] }
+opencl3 = { version = "0.12", optional = true }
 k256 = { version = "0.13", default-features = false, features = ["ecdsa", "std"] }
 ureq = "2.12"
 serde = { version = "1", features = ["derive"] }

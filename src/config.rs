@@ -21,11 +21,20 @@ pub struct Config {
     /// When `floor` is 0, aim for roughly this many proofs per day.
     #[serde(default = "default_target_proofs")]
     pub target_proofs_per_day: f64,
+    /// auto = GPU when this build supports it and a device exists, else CPU.
+    /// cpu / gpu force one engine. Defaults to cpu so upgrading the binary never
+    /// silently changes how an existing install mines.
+    #[serde(default = "default_device")]
+    pub device: String,
     pub gas_ceiling_gwei: f64,
 }
 
 fn default_target_proofs() -> f64 {
     3.0
+}
+
+fn default_device() -> String {
+    "auto".to_string()
 }
 
 /// Canonical Scrip deployment. Filled in automatically so a fresh install mines
@@ -67,7 +76,13 @@ floor = 0
 # rarer notes (less gas); higher means more, smaller ones.
 target_proofs_per_day = 3.0
 
-# Never pay more than this for gas, in gwei.
+# Which engine grinds: auto (measure the CPU and the GPU, keep the faster one),
+# cpu, gpu, or both (cpu and gpu together). GPU mining needs a binary built with
+# the `gpu` feature; without one, auto simply uses the CPU.
+device = "auto"
+
+# Never pay more than this for gas, in gwei. Proofs are held, not dropped, while
+# gas is above the ceiling; a proof still unsubmitted at the epoch boundary dies.
 gas_ceiling_gwei = 5.0
 "#
         )

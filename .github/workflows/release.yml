@@ -43,7 +43,10 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build
-        run: cargo build --release --locked --target ${{ matrix.target }}
+        # `gpu` adds the OpenCL backend. cl3 loads libOpenCL at run time, so the
+        # binary still starts (and mines on the CPU) where no OpenCL runtime
+        # exists; nothing extra is needed to build or link it.
+        run: cargo build --release --locked --features gpu --target ${{ matrix.target }}
 
       # Runs the binary on the platform it was built for. Catches a build that
       # links but cannot start, which a cross-compile would otherwise hide.

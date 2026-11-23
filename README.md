@@ -4,7 +4,7 @@
 
 <h1 align="center">Scrip miner</h1>
 
-<p align="center">A reference miner for Scrip, a token issued only by work.</p>
+<p align="center">A reference miner for Scrip, a token issued only by work. CPU by default, OpenCL GPU when built with the `gpu` feature.</p>
 
 ---
 
@@ -62,6 +62,98 @@ is electricity.
 For Docker, `-v scrip:/data` keeps the wallet and config across container
 replacements. Without it, a new container generates a new wallet and abandons the
 old one's balance.
+
+## GPU mining
+
+The OpenCL backend is behind a build feature, so a plain `cargo build` stays free
+of any GPU dependency. Release downloads already include it.
+
+```bash
+# build with the GPU backend
+cargo build --release --features gpu
+
+# what would be used, if anything
+scrip-miner --devices
+
+# verify the kernel against the CPU before trusting it with an epoch
+scrip-miner --gpu-selftest
+
+# mine on the GPU
+scrip-miner --device gpu
+```
+
+Or set it once in `config.toml`:
+
+```toml
+device = "auto"   # auto | cpu | gpu | both
+```
+
+**The default is `auto`, and it measures rather than guesses:** it runs the CPU
+for three seconds and the GPU for three seconds, then keeps whichever is faster
+on your machine. That matters because "GPU" does not always mean "faster" — a
+weak integrated chip can lose to a many-core CPU, and the reverse is common.
+
+```text
+choosing device (3s per engine)...
+           cpu 12.70 MH/s
+           gpu 27.96 MH/s   Intel(R) UHD Graphics (8192 work-items)
+device     gpu Intel(R) UHD Graphics (8192 work-items)   (auto)
+```
+
+The two engines are sampled the same way, but a three-second sample is not exact.
+If they land within roughly 15% of each other, either choice is fine and the
+difference is not worth chasing. Pin one explicitly if you want determinism.
+
+`both` runs the CPU threads and the GPU at the same time. They occupy disjoint
+nonce ranges (the GPU owns a reserved stream in the top 16 bits of the counter),
+so nothing is ground twice, and both feed one submitter. On this project's test
+machine that was additive: 9 MH/s CPU only, 31 MH/s GPU only, 42 MH/s for both.
+
+Asking for `gpu` or `both` when unavailable is an error rather than a quiet fall
+back, because silently mining on the CPU at a fraction of the rate would be worse
+than a clear failure. Only `auto` falls back.
+
+Notes:
+
+- **Vendor support.** OpenCL is an open standard and all three desktop vendors
+  ship a runtime with their normal driver, so the same binary works on Intel,
+  NVIDIA, and AMD. `scrip-miner --devices` lists every platform and device found,
+  which is the quickest way to tell a missing runtime (no platforms) from an
+  unsupported one.
+  - **Intel** — verified on this project's hardware (integrated UHD, OpenCL 3.0
+    from the graphics driver).
+  - **AMD** — expected to work and expected to be reasonably fast: AMD GPUs do
+    64-bit integer work at close to full rate, which is what Keccak needs. Ships
+    as `amdocl64.dll` on Windows and via `amdgpu-install`/ROCm on Linux, or
+    Mesa's Rusticl (`mesa-opencl-icd`).
+  - **NVIDIA** — expected to work but likely to underperform relative to its CUDA
+    peak. GeForce parts run 64-bit integer operations far below 32-bit rate, and
+    this kernel is written with 64-bit lanes because that is the straightforward
+    encoding. A 32-bit-lane Keccak would be needed to get close to CUDA-class
+    numbers. Ships as `nvopencl64.dll` with the driver.
+  - **macOS** — OpenCL is deprecated by Apple and stuck at 1.2. It still works,
+    but it is not a path worth depending on; treat the macOS builds as CPU only.
+  - **OpenCL CPU devices** (e.g. Mesa/Clover, POCL on Linux) are listed but
+    ignored, since the built-in CPU grinders beat them and need no runtime.
+- **Any vendor works.** If there is no OpenCL runtime at all, a `gpu` build still
+  starts and mines on the CPU.
+- **`threads` is ignored on the GPU.** The grid is sized from the device's compute
+  units. `threads` still sets how many CPU threads run, which is what `both` adds
+  on top of the GPU.
+- **Multiple GPUs run in parallel.** Every OpenCL GPU on the machine gets its own
+  worker thread, its own context, and its own reserved nonce stream, and they all
+  feed one submitter. Up to 256 GPUs (the stream-id budget). If one device fails
+  to initialise, it logs and stops while the others keep mining.
+- **Hits are re-checked on the CPU** before submission, so a buggy or lying device
+  cannot make the miner submit an invalid proof. It can only waste work.
+- **Auto-floor measures the selected backend**, so a GPU gets a floor suited to
+  its own hashrate rather than the CPU's.
+
+Throughput is what you would expect from the work: a single-block Keccak per
+attempt, one permutation each. As a reference point, an integrated Intel UHD in
+this project's own testing reached about 31 MH/s against 9 MH/s on the same
+machine's CPU. A discrete GPU should be substantially faster than both, and ASICs
+faster again; nothing here resists that, by design (`floor` is yours to raise).
 
 ## The one number that matters: `floor`
 
@@ -131,6 +223,8 @@ to work, with no schedule to lobby.
 | --- | --- |
 | `src/main.rs` | startup, auto-floor, hashrate measurement, submit loop |
 | `src/grind.rs` | multithreaded keccak search over nonce ranges |
+| `src/gpu.rs` | OpenCL backend: device setup, launches, hit verification |
+| `src/keccak_grind.cl` | the OpenCL kernel, one Keccak permutation per attempt |
 | `src/tx.rs` | proof encoding, EIP-1559 transaction, RLP |
 | `src/rpc.rs` | JSON-RPC over `ureq` |
 | `src/wallet.rs` | key generation and loading |
